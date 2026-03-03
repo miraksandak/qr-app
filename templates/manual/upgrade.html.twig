@@ -1,0 +1,55 @@
+{% extends 'manual/base.html.twig' %}
+
+{% block title %}Guest Wi-Fi Upgrade{% endblock %}
+
+{% block body %}
+    <main class="sheet">
+        <div class="lang-switch" aria-label="Language selector">
+            <label for="langSelect" class="lang-switch__label" data-i18n="language">Language</label>
+            <select id="langSelect" class="lang-switch__select">
+                <option value="en">English</option>
+                <option value="cs">Čeština</option>
+            </select>
+        </div>
+
+        <header class="header">
+            <div class="brand">
+                <img id="hotel-logo" src="" alt="" class="logo hidden" />
+                <div id="hotel-name" class="brandline"></div>
+            </div>
+
+            <div class="heading">
+                <h1 data-i18n="upgradeTitle">Connection upgrade</h1>
+                <p class="subtitle">
+                    <span data-i18n="connectTo">Connect to</span>
+                    <strong id="hotel-ssid">Hotel-Guest</strong>
+                    <span data-i18n="wifiLabel">Wi-Fi</span>
+                </p>
+            </div>
+        </header>
+
+        <section id="upgrade-panel" class="card">
+            <div class="card__bar">
+                <div class="card__left">
+                    <span class="opt" data-i18n="upgradeLabel">Upgrade</span>
+                    <span id="upgrade-title" class="opt__title">Improve connection</span>
+                </div>
+            </div>
+            <div class="card__body upgrade__body">
+                <div>
+                    <p id="upgrade-body" class="upgrade__text"></p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div id="support-text">Need help? Please contact reception.</div>
+            <div id="footer-brand" class="muted">© Guest Wi-Fi</div>
+        </footer>
+
+        <section id="load-error" class="error hidden">
+            <h2 data-i18n="upgradeUnavailable">Upgrade unavailable</h2>
+            <p data-i18n="upgradeUnavailableBody">This upgrade link is missing, expired, or disabled for this manual.</p>
+        </section>
+    </main>
+{% endblock %}

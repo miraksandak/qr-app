@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}Guest Wi-Fi Manual{% endblock %}</title>
+        <link rel="stylesheet" href="{{ asset('css/manual.css') }}">
+        <script src="{{ asset('manual.js') }}" defer></script>
+    </head>
+    <body data-manual-id="{{ id }}" data-page="{{ page }}" data-base-upgrade-url="{{ baseUpgradeUrl }}" data-base-viewer-url="{{ baseViewerUrl }}">
+        {% block body %}{% endblock %}
+    </body>
+</html>

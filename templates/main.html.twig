@@ -1,29 +1,170 @@
 {% extends "base.html.twig" %}
-{% block body %}
-    <div  class="telo">
-        <h1>Milý studente!</h1>
-        <p>
-            Toto je vývojové prostředí pro předmět PVA. Právě se Ti jej podařilo kompletně rozběhnout. Gratuluji. ☺
-        </p>
-        <p>
-            S tímto prostředím se budeme potkávat po celý rok a proto je dobré, aby ses s ním trochu seznámil.
-            Rozhlédni se po aplikaci a zkus si s ní trochu pohrát. Prozkoumej útroby. Zjisti co slouží k čemu.
-            Klidně si zkus aplikaci modifikovat a upravit ke svému obrazu. Většina provedených změn by měla mít
-            okamžitý efekt.
-        </p>
-        <div class="ptacek-kontejner">
-            <object class="ptacek" type="image/svg+xml" data="{{ asset('svg/ptacek.svg') }}"></object>
-            <div id="prepinac">
-                <a href="#">Myslím, že ten pták je infantilní!</a>
-            </div>
-        </div>
-        <div class="sloupek-kontejner">
-            <video class="sloupek"><source src="{{ asset('media/sloupek.mp4') }}" type="video/mp4" /></video>
-            <div id="prepinac-zpet">
-                <a href="#">Tvl, to raději toho ptáka!</a>
-            </div>
-        </div>
 
-    </div>
-    <audio id="sound"><source src="{{ asset('media/tweet.mp3') }}" type="audio/mpeg"></audio>
+{% block title %}Manual Viewer Builder{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+{% endblock %}
+
+{% block javascripts %}
+    <script src="{{ asset('main.js') }}" defer></script>
+{% endblock %}
+
+{% block body %}
+    <main class="page">
+        <header class="hero">
+            <div>
+                <p class="eyebrow">Captive Portal Manual</p>
+                <h1>Manual Viewer Builder</h1>
+                <p class="subtitle">Create a manual without curl, then open the viewer or JSON endpoint instantly.</p>
+            </div>
+            <div class="hero-card">
+                <h2>Quick Links</h2>
+                <p>Paste an ID to open an existing manual.</p>
+                <form id="open-form" class="inline-form">
+                    <input id="open-id" class="input" type="text" maxlength="5" placeholder="ABCDE" autocomplete="off">
+                    <button class="button" type="submit">Open Viewer</button>
+                </form>
+            </div>
+        </header>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Create Manual</h2>
+                <p>Fill only what you need. The server merges with defaults.</p>
+            </div>
+            <form id="manual-form" class="form">
+                <div class="field">
+                    <label for="apiKey">API Key</label>
+                    <input id="apiKey" class="input" type="text" value="dev-local-key" autocomplete="off">
+                </div>
+                <div class="field">
+                    <label for="validUntil">Valid Until (ISO, optional)</label>
+                    <input id="validUntil" class="input" type="text" placeholder="2026-03-01T12:00:00+00:00">
+                </div>
+
+                <div class="grid two">
+                    <div class="field">
+                        <label for="hotelName">Hotel Name</label>
+                        <input id="hotelName" class="input" type="text" value="Mikenopa">
+                    </div>
+                    <div class="field">
+                        <label for="hotelSsid">SSID</label>
+                        <input id="hotelSsid" class="input" type="text" value="Hotel-Guest">
+                    </div>
+                    <div class="field">
+                        <label for="hotelSupport">Support Text</label>
+                        <input id="hotelSupport" class="input" type="text" value="Need help? Contact reception.">
+                    </div>
+                    <div class="field">
+                        <label for="hotelLogo">Logo URL</label>
+                        <input id="hotelLogo" class="input" type="text" value="/media/mik-logo.png">
+                    </div>
+                    <div class="field">
+                        <label for="portalUrl">Portal URL (optional)</label>
+                        <input id="portalUrl" class="input" type="text" placeholder="http://localhost:8086">
+                    </div>
+                </div>
+
+                <div class="grid two">
+                    <div class="field">
+                        <label for="roomNumber">Room Number</label>
+                        <input id="roomNumber" class="input" type="text" value="606">
+                    </div>
+                    <div class="field">
+                        <label for="surname">Surname</label>
+                        <input id="surname" class="input" type="text" value="Doe">
+                    </div>
+                    <div class="field">
+                        <label for="accessCode">Access Code</label>
+                        <input id="accessCode" class="input" type="text" value="ABCD-1234">
+                    </div>
+                </div>
+
+                <div class="grid two">
+                    <div class="field">
+                        <label for="deviceDefault">Default Device</label>
+                        <select id="deviceDefault" class="input">
+                            <option value="android">Android</option>
+                            <option value="ios">iOS</option>
+                            <option value="generic" selected>Generic</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <span class="label">Available Devices</span>
+                        <div class="checkbox-row">
+                            <label><input type="checkbox" name="deviceAvailable" value="android" checked> Android</label>
+                            <label><input type="checkbox" name="deviceAvailable" value="ios" checked> iOS</label>
+                            <label><input type="checkbox" name="deviceAvailable" value="generic" checked> Generic</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid three">
+                    <div class="field">
+                        <label for="stepsAndroid">Android Steps (one per line)</label>
+                        <textarea id="stepsAndroid" class="input" rows="4">Open Wi-Fi settings on your phone.
+Select the hotel network.
+Enter the login details and tap Connect.</textarea>
+                    </div>
+                    <div class="field">
+                        <label for="stepsIos">iOS Steps (one per line)</label>
+                        <textarea id="stepsIos" class="input" rows="4">Open Settings and tap Wi-Fi.
+Choose the hotel network.
+Fill in the login details and tap Join.</textarea>
+                    </div>
+                    <div class="field">
+                        <label for="stepsGeneric">Generic Steps (one per line)</label>
+                        <textarea id="stepsGeneric" class="input" rows="4">Open Wi-Fi settings on your device.
+Select the hotel network.
+Provide the login details and connect.</textarea>
+                    </div>
+                </div>
+
+                <div class="panel-sub">
+                    <div class="field">
+                        <label><input id="upgradeEnabled" type="checkbox" checked> Upgrade enabled</label>
+                    </div>
+                    <div class="grid two">
+                        <div class="field">
+                            <label for="upgradeTitle">Upgrade Title</label>
+                            <input id="upgradeTitle" class="input" type="text" value="Improve connection">
+                        </div>
+                        <div class="field">
+                            <label for="upgradeBody">Upgrade Body</label>
+                            <input id="upgradeBody" class="input" type="text" value="If connected but experiencing issues, open this page.">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="button primary" type="submit">Create Manual</button>
+                    <button class="button" type="button" id="resetForm">Reset</button>
+                </div>
+
+                <div id="form-error" class="error hidden"></div>
+            </form>
+        </section>
+
+        <section id="result-panel" class="panel hidden">
+            <div class="panel-header">
+                <h2>Created</h2>
+                <p>Use these links to open the manual.</p>
+            </div>
+            <div class="result-grid">
+                <div>
+                    <div class="result-label">Viewer</div>
+                    <a id="result-viewer" class="result-link" href="#" target="_blank" rel="noreferrer"></a>
+                </div>
+                <div>
+                    <div class="result-label">JSON</div>
+                    <a id="result-json" class="result-link" href="#" target="_blank" rel="noreferrer"></a>
+                </div>
+                <div>
+                    <div class="result-label">Upgrade</div>
+                    <a id="result-upgrade" class="result-link" href="#" target="_blank" rel="noreferrer"></a>
+                </div>
+            </div>
+        </section>
+    </main>
 {% endblock %}

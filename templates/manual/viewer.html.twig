@@ -1,0 +1,158 @@
+{% extends 'manual/base.html.twig' %}
+
+{% block title %}Guest Wi-Fi Login{% endblock %}
+
+{% block body %}
+    <main class="sheet">
+        <div class="lang-switch" aria-label="Language selector">
+            <label for="langSelect" class="lang-switch__label" data-i18n="language">Language</label>
+            <select id="langSelect" class="lang-switch__select">
+                <option value="en">English</option>
+                <option value="cs">Čeština</option>
+            </select>
+        </div>
+
+        <header class="header">
+            <div class="brand">
+                <img id="hotel-logo" src="" alt="" class="logo hidden" />
+                <div id="hotel-name" class="brandline"></div>
+            </div>
+
+            <div class="heading">
+                <h1 data-i18n="title">Guest Wi-Fi Login</h1>
+                <p class="subtitle">
+                    <span data-i18n="connectTo">Connect to</span>
+                    <strong id="hotel-ssid">Hotel-Guest</strong>
+                    <span data-i18n="wifiLabel">Wi-Fi</span>
+                    <span class="dot hidden">•</span>
+                    <span id="portal-host" class="hidden"></span>
+                </p>
+            </div>
+        </header>
+
+        <section class="step1">
+            <div class="step1__label" data-i18n="stepLabel">Step 1</div>
+            <div id="step1-text" class="step1__text"></div>
+        </section>
+
+        <section class="device">
+            <div class="device__label" data-i18n="deviceLabel">Device</div>
+            <div id="device-buttons" class="device-buttons"></div>
+        </section>
+
+        <section class="steps">
+            <div class="steps__label" data-i18n="stepsLabel">Steps</div>
+            <ol id="steps-list" class="steps-list"></ol>
+        </section>
+
+        <section class="list">
+            <article class="card">
+                <div class="card__bar">
+                    <div class="card__left">
+                        <span class="opt" data-i18n="option1">Option 1</span>
+                        <span class="opt__title" data-i18n="roomSurname">Room + Surname</span>
+                    </div>
+                </div>
+
+                <div class="card__body">
+                    <div class="qrCol">
+                        <canvas class="qr" id="qr-room" width="150" height="150"></canvas>
+                        <div class="qrHint" data-i18n="scanCamera">Scan with Camera</div>
+                    </div>
+
+                    <div class="dataCol">
+                        <div class="dataGrid">
+                            <div class="dataBox">
+                                <div class="dataLabel" data-i18n="roomNumber">Room number</div>
+                                <div id="room-value" class="dataValue">—</div>
+                            </div>
+                            <div class="dataBox">
+                                <div class="dataLabel" data-i18n="surname">Surname</div>
+                                <div id="surname-value" class="dataValue">—</div>
+                            </div>
+                        </div>
+                        <div class="cta" data-i18n="tapConnect">Tap <strong>Connect</strong></div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="card">
+                <div class="card__bar">
+                    <div class="card__left">
+                        <span class="opt" data-i18n="option2">Option 2</span>
+                        <span class="opt__title" data-i18n="accessCode">Access code</span>
+                    </div>
+                </div>
+
+                <div class="card__body">
+                    <div class="qrCol">
+                        <canvas class="qr" id="qr-access" width="150" height="150"></canvas>
+                        <div class="qrHint" data-i18n="scanCamera">Scan with Camera</div>
+                    </div>
+
+                    <div class="dataCol">
+                        <div class="dataGrid">
+                            <div class="dataBox">
+                                <div class="dataLabel" data-i18n="accessCodeLabel">Access code</div>
+                                <div id="access-code-value" class="dataValue mono">—</div>
+                            </div>
+                        </div>
+                        <div class="cta" data-i18n="tapConnect">Tap <strong>Connect</strong></div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="card card--free">
+                <div class="card__bar">
+                    <div class="card__left">
+                        <span class="opt opt--free" data-i18n="option3">Option 3</span>
+                        <span class="opt__title" data-i18n="freeAccess">Free access</span>
+                    </div>
+                    <div class="card__right" data-i18n="noDetails">No details required</div>
+                </div>
+
+                <div class="card__body">
+                    <div class="qrCol">
+                        <canvas class="qr" id="qr-free" width="150" height="150"></canvas>
+                        <div class="qrHint" data-i18n="scanCamera">Scan with Camera</div>
+                    </div>
+
+                    <div class="dataCol">
+                        <div class="dataGrid">
+                            <div class="dataBox">
+                                <div class="dataLabel" data-i18n="action">Action</div>
+                                <div class="dataValue" data-i18n="tapConnectContinue">Tap <strong>Connect</strong> / <strong>Continue</strong></div>
+                            </div>
+                        </div>
+                        <div class="cta" data-i18n="online">You are online</div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section id="upgrade-card" class="card upgrade hidden">
+            <div class="card__bar">
+                <div class="card__left">
+                    <span class="opt" data-i18n="upgradeLabel">Upgrade</span>
+                    <span id="upgrade-title" class="opt__title">Improve connection</span>
+                </div>
+            </div>
+            <div class="card__body upgrade__body">
+                <div>
+                    <p id="upgrade-body" class="upgrade__text"></p>
+                    <a id="upgrade-link" class="upgrade__link" href="#" data-i18n="openUpgrade">Open upgrade page</a>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div id="support-text">Need help? Please contact reception.</div>
+            <div id="footer-brand" class="muted">© Guest Wi-Fi</div>
+        </footer>
+
+        <section id="load-error" class="error hidden">
+            <h2 data-i18n="manualUnavailable">Manual unavailable</h2>
+            <p data-i18n="manualUnavailableBody">This manual link is missing or expired. Please request a fresh one.</p>
+        </section>
+    </main>
+{% endblock %}

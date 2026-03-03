@@ -24,13 +24,15 @@ class AdminerLoginPasswordLess
         return true;
     }
 
-	public function credentials()
+    public function credentials()
     {
-        $host = static::$dbConf['host'];
-        if (isset(static::$dbConf['port'])) {
+        $host = static::$dbConf['host'] ?? '';
+        if ($host !== '' && isset(static::$dbConf['port'])) {
             $host .= ":" . static::$dbConf['port'];
         }
-        return [$host, static::$dbConf['user'], static::$dbConf['pass']];
+        $user = static::$dbConf['user'] ?? '';
+        $pass = static::$dbConf['pass'] ?? '';
+        return [$host, $user, $pass];
 	}
 
     public function database()
@@ -61,12 +63,16 @@ class AdminerLoginPasswordLess
             return null;
         }
 
+        $dbValue = '';
+        if (isset(self::$dbConf['scheme']) && in_array(self::$dbConf['scheme'], ['sqlite', 'sqlite3', 'pdo_sqlite', 'sqlite2'], true)) {
+            $dbValue = self::$dbConf['path'] ?? '';
+        }
         $data = [
             "driver" => $drivers[self::$dbConf['scheme']],
             "server" => "",
             "username" => "",
             "password" => "",
-            "db" => ""
+            "db" => $dbValue
         ];
         foreach ($data as $var => $value) {
             echo sprintf("<input type=\"hidden\" name=\"auth[%s]\" value=\"%s\">\n", htmlspecialchars($var), htmlspecialchars($value));

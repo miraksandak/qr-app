@@ -66,7 +66,6 @@ apt-get -y install "${packages_preinstall[@]}"
 
 install_deb "https://packages.sury.org/debsuryorg-archive-keyring.deb"
 
-add_apt_repository nginx "http://nginx.org/packages/debian/" stretch nginx "https://nginx.org/keys/nginx_signing.key"
 add_apt_repository php "https://packages.sury.org/php/" trixie main /usr/share/keyrings/debsuryorg-archive-keyring.gpg
 
 apt-get -y update
