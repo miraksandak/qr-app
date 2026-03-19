@@ -19,9 +19,8 @@
             title: 'Guest Wi-Fi Login',
             connectTo: 'Connect to',
             wifiLabel: 'Wi-Fi',
-            stepLabel: 'Step 1',
-            stepText: 'Open Wi-Fi settings → connect to <strong>{ssid}</strong>. If the portal does not open, visit <strong>{portal}</strong>.',
             deviceLabel: 'Device',
+            ssidLabel: 'Network',
             stepsLabel: 'Steps',
             option1: 'Option 1',
             roomSurname: 'Room + Surname',
@@ -34,11 +33,16 @@
             roomNumber: 'Room number',
             surname: 'Surname',
             accessCodeLabel: 'Access code',
+            networkLabel: 'Network',
+            authRoom: 'room number and surname',
+            authAccess: 'access code',
             action: 'Action',
             tapConnect: 'Tap <strong>Connect</strong>',
             tapConnectContinue: 'Tap <strong>Connect</strong> / <strong>Continue</strong>',
             online: 'You are online',
             upgradeLabel: 'Upgrade',
+            upgradeCardTitle: 'Improve connection',
+            upgradeBody: 'If your connection is unstable, open the upgrade page.',
             openUpgrade: 'Open upgrade page',
             manualUnavailable: 'Manual unavailable',
             manualUnavailableBody: 'This manual link is missing or expired. Please request a fresh one.',
@@ -51,9 +55,8 @@
             title: 'Přihlášení k Wi‑Fi',
             connectTo: 'Připojte se k',
             wifiLabel: 'Wi‑Fi',
-            stepLabel: 'Krok 1',
-            stepText: 'Otevřete nastavení Wi‑Fi → připojte se k <strong>{ssid}</strong>. Pokud se portál neotevře, otevřete <strong>{portal}</strong>.',
             deviceLabel: 'Zařízení',
+            ssidLabel: 'Síť',
             stepsLabel: 'Postup',
             option1: 'Volba 1',
             roomSurname: 'Pokoj + Příjmení',
@@ -66,11 +69,16 @@
             roomNumber: 'Číslo pokoje',
             surname: 'Příjmení',
             accessCodeLabel: 'Přístupový kód',
+            networkLabel: 'Síť',
+            authRoom: 'číslo pokoje a příjmení',
+            authAccess: 'přístupový kód',
             action: 'Akce',
             tapConnect: 'Klepněte na <strong>Připojit</strong>',
             tapConnectContinue: 'Klepněte na <strong>Připojit</strong> / <strong>Pokračovat</strong>',
             online: 'Jste online',
             upgradeLabel: 'Upgrade',
+            upgradeCardTitle: 'Vylepšit připojení',
+            upgradeBody: 'Pokud je připojení nestabilní, otevřete stránku upgradu.',
             openUpgrade: 'Otevřít stránku upgradu',
             manualUnavailable: 'Manuál není dostupný',
             manualUnavailableBody: 'Odkaz na manuál neexistuje nebo vypršel. Vyžádejte si nový.',
@@ -83,6 +91,87 @@
     const deviceNames = {
         en: { android: 'Android', ios: 'iOS', generic: 'Other' },
         cs: { android: 'Android', ios: 'iOS', generic: 'Ostatní' },
+    };
+
+    const instructionSets = {
+        en: {
+            portal: {
+                android: [
+                    'Open Wi-Fi settings on your phone.',
+                    'Connect to {ssid}.',
+                    'If the portal does not open, open {portal}.',
+                    'Enter {auth} and tap Connect.',
+                ],
+                ios: [
+                    'Open Settings and tap Wi-Fi.',
+                    'Connect to {ssid}.',
+                    'If the portal does not open, open {portal}.',
+                    'Enter {auth} and tap Connect.',
+                ],
+                generic: [
+                    'Open Wi-Fi settings on your device.',
+                    'Connect to {ssid}.',
+                    'If the portal does not open, open {portal}.',
+                    'Enter {auth} and tap Connect.',
+                ],
+            },
+            free: {
+                android: [
+                    'Open Wi-Fi settings on your phone.',
+                    'Connect to {ssid}.',
+                    'You are online.',
+                ],
+                ios: [
+                    'Open Settings and tap Wi-Fi.',
+                    'Connect to {ssid}.',
+                    'You are online.',
+                ],
+                generic: [
+                    'Open Wi-Fi settings on your device.',
+                    'Connect to {ssid}.',
+                    'You are online.',
+                ],
+            },
+        },
+        cs: {
+            portal: {
+                android: [
+                    'Otevřete nastavení Wi‑Fi v telefonu.',
+                    'Připojte se k {ssid}.',
+                    'Pokud se portál neotevře, otevřete {portal}.',
+                    'Zadejte {auth} a potvrďte připojení.',
+                ],
+                ios: [
+                    'Otevřete Nastavení a klepněte na Wi‑Fi.',
+                    'Připojte se k {ssid}.',
+                    'Pokud se portál neotevře, otevřete {portal}.',
+                    'Zadejte {auth} a potvrďte připojení.',
+                ],
+                generic: [
+                    'Otevřete nastavení Wi‑Fi na zařízení.',
+                    'Připojte se k {ssid}.',
+                    'Pokud se portál neotevře, otevřete {portal}.',
+                    'Zadejte {auth} a potvrďte připojení.',
+                ],
+            },
+            free: {
+                android: [
+                    'Otevřete nastavení Wi‑Fi v telefonu.',
+                    'Připojte se k {ssid}.',
+                    'Jste online.',
+                ],
+                ios: [
+                    'Otevřete Nastavení a klepněte na Wi‑Fi.',
+                    'Připojte se k {ssid}.',
+                    'Jste online.',
+                ],
+                generic: [
+                    'Otevřete nastavení Wi‑Fi na zařízení.',
+                    'Připojte se k {ssid}.',
+                    'Jste online.',
+                ],
+            },
+        },
     };
 
     const htmlKeys = new Set(['tapConnect', 'tapConnectContinue']);
@@ -145,13 +234,132 @@
 
     const getPortalUrl = (payload) => {
         return (
+            payload.hotel?.portalUrl ||
             payload.portal?.url ||
             payload.portalUrl ||
-            payload.hotel?.portalUrl ||
             payload.hotel?.portal ||
             baseViewerUrl ||
             window.location.origin
         );
+    };
+
+    const normalizeUsage = (value) => {
+        const raw = String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!raw) {
+            return '';
+        }
+        if (['pms', 'room', 'roomsurname', 'roomlogin'].includes(raw)) {
+            return 'pms';
+        }
+        if (['ac', 'access', 'accesscode', 'code'].includes(raw)) {
+            return 'ac';
+        }
+        if (['option1', 'opt1', 'o1'].includes(raw)) {
+            return 'pms';
+        }
+        if (['option2', 'opt2', 'o2'].includes(raw)) {
+            return 'ac';
+        }
+        if (['option3', 'opt3', 'o3'].includes(raw)) {
+            return 'free';
+        }
+        if (['free', 'guest', 'open'].includes(raw)) {
+            return 'free';
+        }
+        return '';
+    };
+
+    const buildSsidCatalog = (payload) => {
+        const catalog = { pms: [], ac: [], free: [] };
+        const rawList = Array.isArray(payload.hotel?.ssids) ? payload.hotel.ssids : [];
+        rawList.forEach((item) => {
+            if (typeof item === 'string') {
+                const name = item.trim();
+                if (name) {
+                    catalog.pms.push({ name, usage: 'pms' });
+                }
+                return;
+            }
+            if (!item || typeof item !== 'object') {
+                return;
+            }
+            const name = typeof item.name === 'string'
+                ? item.name.trim()
+                : (typeof item.ssid === 'string' ? item.ssid.trim() : '');
+            if (!name) {
+                return;
+            }
+            const usage = normalizeUsage(item.usage || item.purpose || item.type) || 'pms';
+            catalog[usage]?.push({ name, usage });
+        });
+
+        const legacy = typeof payload.hotel?.ssid === 'string' ? payload.hotel.ssid.trim() : '';
+        if (legacy && catalog.pms.length === 0 && catalog.ac.length === 0 && catalog.free.length === 0) {
+            catalog.pms.push({ name: legacy, usage: 'pms' });
+        }
+
+        return catalog;
+    };
+
+    const resolveMode = (payload, catalog) => {
+        const rawMode = payload.options?.mode || payload.auth?.mode || '';
+        let mode = normalizeUsage(rawMode) || '';
+        const hasPms = catalog.pms.length > 0;
+        const hasAc = catalog.ac.length > 0;
+        const hasFree = catalog.free.length > 0;
+
+        if (!mode) {
+            mode = hasPms ? 'pms' : (hasAc ? 'ac' : (hasFree ? 'free' : 'pms'));
+        }
+
+        if (mode === 'pms' && !hasPms && hasAc) {
+            mode = 'ac';
+        }
+        if (mode === 'ac' && !hasAc && hasPms) {
+            mode = 'pms';
+        }
+        if (mode === 'free' && !hasFree) {
+            mode = hasPms ? 'pms' : (hasAc ? 'ac' : 'pms');
+        }
+
+        return mode || 'pms';
+    };
+
+    const resolveAuthFields = (payload, mode) => {
+        const options = payload.options || {};
+        const fields = [];
+        const explicit = Array.isArray(options.fields) ? options.fields : null;
+
+        if (explicit) {
+            explicit.forEach((field) => {
+                if (!field || typeof field !== 'object') {
+                    return;
+                }
+                const key = typeof field.key === 'string' ? field.key.trim() : '';
+                const value = field.value;
+                if (!key) {
+                    return;
+                }
+                fields.push({ key, value });
+            });
+            return fields;
+        }
+
+        if (mode === 'ac') {
+            const source = options.ac ?? options.accessCode ?? {};
+            const code = typeof source === 'string'
+                ? source
+                : (source.code ?? source.value ?? source.accessCode ?? '');
+            fields.push({ key: 'accessCode', value: code });
+        } else {
+            const source = options.pms ?? options.roomSurname ?? {};
+            const room = typeof source === 'string' ? source : (source.room ?? source.roomNumber ?? '');
+            const surname = typeof source === 'object' && source ? (source.surname ?? '') : '';
+            fields.push({ key: 'roomNumber', value: room });
+            fields.push({ key: 'surname', value: surname });
+        }
+
+        return fields;
     };
 
     const applyTranslations = (lang) => {
@@ -170,40 +378,36 @@
         return dictionary;
     };
 
-    const renderStepText = (lang, payload) => {
-        const dictionary = translations[lang] || translations.en;
-        const stepTarget = document.getElementById('step1-text');
-        if (!stepTarget) {
-            return;
+    const resolveAuthLabel = (dictionary, mode) => {
+        if (mode === 'ac') {
+            return dictionary.authAccess || translations.en.authAccess;
         }
-        const ssid = payload.hotel?.ssid || 'Hotel-Guest';
-        const portalUrl = getPortalUrl(payload);
-        const portalHost = formatPortalHost(portalUrl);
-        const template = dictionary.stepText || translations.en.stepText;
-        const html = template
-            .replace('{ssid}', escapeHtml(ssid))
-            .replace('{portal}', escapeHtml(portalHost || portalUrl));
-        stepTarget.innerHTML = html;
+        return dictionary.authRoom || translations.en.authRoom;
     };
 
-    const resolveSteps = (payload, device) => {
-        const steps = payload.steps || {};
-        if (Array.isArray(steps[device])) {
-            return steps[device];
-        }
-        if (Array.isArray(steps.generic)) {
-            return steps.generic;
-        }
-        return [];
+    const formatStep = (template, context) => {
+        return template
+            .replace('{ssid}', context.ssid || '')
+            .replace('{portal}', context.portal || '')
+            .replace('{auth}', context.auth || '');
     };
 
-    const renderStepsList = (payload, device, lang) => {
+    const resolveInstructionSteps = (lang, mode, device, context) => {
+        const set = instructionSets[lang] || instructionSets.en;
+        const group = mode === 'free' ? set.free : set.portal;
+        const steps = Array.isArray(group[device]) ? group[device] : (group.generic || []);
+        return steps
+            .filter((step) => (context.portal || !step.includes('{portal}')))
+            .map((step) => formatStep(step, context));
+    };
+
+    const renderStepsList = (mode, device, lang, context) => {
         const list = document.getElementById('steps-list');
         if (!list) {
             return;
         }
         list.innerHTML = '';
-        const steps = resolveSteps(payload, device);
+        const steps = resolveInstructionSteps(lang, mode, device, context);
         if (!steps.length) {
             const li = document.createElement('li');
             li.textContent = lang === 'cs' ? 'Žádné kroky nejsou k dispozici.' : 'No steps available for this device.';
@@ -258,46 +462,179 @@
         }
     };
 
-    const renderOptions = (payload) => {
-        const room = payload.options?.roomSurname?.room;
-        const surname = payload.options?.roomSurname?.surname;
-        const code = payload.options?.accessCode?.code;
-        setText('room-value', room);
-        setText('surname-value', surname);
-        setText('access-code-value', code);
+    const renderSsidButtons = (ssids, onSelect, preferredSsid = null) => {
+        const section = document.getElementById('ssid-section');
+        const container = document.getElementById('ssid-buttons');
+        if (!section || !container) {
+            return;
+        }
+
+        const list = Array.isArray(ssids) ? ssids : [];
+        if (list.length <= 1) {
+            container.innerHTML = '';
+            section.classList.add('hidden');
+            if (list[0]) {
+                onSelect(list[0].name);
+            }
+            return;
+        }
+
+        section.classList.remove('hidden');
+        container.innerHTML = '';
+        const names = list.map((item) => item.name);
+        const initial = preferredSsid && names.includes(preferredSsid) ? preferredSsid : names[0];
+
+        const setActive = (name) => {
+            container.querySelectorAll('.device-button').forEach((button) => {
+                if (button.dataset.ssid === name) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+            onSelect(name);
+        };
+
+        list.forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'device-button';
+            button.dataset.ssid = item.name;
+            button.textContent = item.name;
+            button.addEventListener('click', () => setActive(item.name));
+            container.appendChild(button);
+        });
+
+        if (initial) {
+            setActive(initial);
+        }
     };
 
-    const renderUpgradeSection = (payload) => {
+    const resolveFieldLabel = (dictionary, key) => {
+        const raw = String(key || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const mapping = {
+            room: 'roomNumber',
+            roomnumber: 'roomNumber',
+            surname: 'surname',
+            lastname: 'surname',
+            accesscode: 'accessCodeLabel',
+            code: 'accessCodeLabel',
+        };
+        const mapped = mapping[raw];
+        if (mapped && dictionary[mapped]) {
+            return dictionary[mapped];
+        }
+        return key || '—';
+    };
+
+    const renderAuthFields = (fields, dictionary) => {
+        const container = document.getElementById('auth-fields');
+        if (!container) {
+            return;
+        }
+        container.innerHTML = '';
+
+        if (!fields.length) {
+            fields = [{ key: dictionary.accessCodeLabel || 'Detail', value: '—' }];
+        }
+
+        fields.forEach((field) => {
+            const rawKey = String(field.key || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            const box = document.createElement('div');
+            box.className = 'dataBox';
+            const label = document.createElement('div');
+            label.className = 'dataLabel';
+            label.textContent = resolveFieldLabel(dictionary, field.key);
+            const value = document.createElement('div');
+            value.className = 'dataValue';
+            if (['accesscode', 'code'].includes(rawKey)) {
+                value.classList.add('mono');
+            }
+            value.textContent = field.value === undefined || field.value === null || field.value === '' ? '—' : String(field.value);
+            box.appendChild(label);
+            box.appendChild(value);
+            container.appendChild(box);
+        });
+    };
+
+    const renderAuthCard = (payload, mode, dictionary) => {
+        const labelEl = document.getElementById('auth-option-label');
+        const titleEl = document.getElementById('auth-option-title');
+        if (labelEl && titleEl) {
+            if (mode === 'ac') {
+                labelEl.textContent = dictionary.option2 || translations.en.option2;
+                titleEl.textContent = dictionary.accessCode || translations.en.accessCode;
+            } else {
+                labelEl.textContent = dictionary.option1 || translations.en.option1;
+                titleEl.textContent = dictionary.roomSurname || translations.en.roomSurname;
+            }
+        }
+        const fields = resolveAuthFields(payload, mode);
+        renderAuthFields(fields, dictionary);
+    };
+
+    const renderFreeCard = (payload, freeSsids) => {
+        const card = document.getElementById('free-card');
+        if (!card) {
+            return;
+        }
+        const freeConfig = payload.options?.freeAccess;
+        const enabled = freeSsids.length > 0 || freeConfig === true || freeConfig?.enabled === true;
+        if (!enabled) {
+            card.classList.add('hidden');
+            return;
+        }
+        card.classList.remove('hidden');
+        const name = freeSsids.length > 1
+            ? freeSsids.map((item) => item.name).join(', ')
+            : (freeSsids[0]?.name || '');
+        setText('free-ssid-value', name);
+    };
+
+    const resolveUpgradeConfig = (payload) => {
+        const upgrade = payload.hotel?.upgrade || payload.upgrade || {};
+        const enabled = upgrade.enabled === true;
+        const rawUrl = (typeof upgrade.url === 'string' ? upgrade.url.trim() : '') ||
+            (typeof payload.upgradeUrl === 'string' ? payload.upgradeUrl.trim() : '') ||
+            (typeof payload.hotel?.upgradeUrl === 'string' ? payload.hotel.upgradeUrl.trim() : '');
+        return { enabled, url: rawUrl };
+    };
+
+    const renderUpgradeSection = (payload, dictionary) => {
         const upgradeSection = document.getElementById('upgrade-card');
         if (!upgradeSection) {
             return;
         }
 
-        const upgrade = payload.upgrade || {};
-        if (!upgrade.enabled) {
+        const upgrade = resolveUpgradeConfig(payload);
+        const isEnabled = upgrade.enabled || !!upgrade.url;
+        const linkUrl = upgrade.url
+            ? upgrade.url
+            : (baseUpgradeUrl ? `${baseUpgradeUrl.replace(/\/$/, '')}/${manualId}` : '');
+
+        if (!isEnabled || !linkUrl) {
             upgradeSection.classList.add('hidden');
             return;
         }
 
         upgradeSection.classList.remove('hidden');
-        setText('upgrade-title', upgrade.title || 'Improve connection');
-        setText('upgrade-body', upgrade.body || '');
+        setText('upgrade-title', dictionary.upgradeCardTitle || translations.en.upgradeCardTitle);
+        setText('upgrade-body', dictionary.upgradeBody || translations.en.upgradeBody);
         const link = document.getElementById('upgrade-link');
         if (link) {
-            const base = baseUpgradeUrl ? baseUpgradeUrl.replace(/\/$/, '') : '/upgrade';
-            link.href = `${base}/${manualId}`;
+            link.href = linkUrl;
         }
     };
 
-    const renderSupport = (payload) => {
+    const renderSupport = (payload, ssidName, showPortal) => {
         setText('hotel-name', payload.hotel?.name, '');
-        setText('hotel-ssid', payload.hotel?.ssid, 'Hotel-Guest');
+        setText('hotel-ssid', ssidName || payload.hotel?.ssid, 'Hotel-Guest');
         setText('support-text', payload.hotel?.supportText, 'Need help? Contact reception.');
         const footerText = payload.hotel?.footerText || (payload.hotel?.name ? `© ${payload.hotel.name}` : '© Guest Wi-Fi');
         setText('footer-brand', footerText);
 
-        const portalUrl = getPortalUrl(payload);
-        const portalHost = formatPortalHost(portalUrl);
+        const portalUrl = showPortal ? getPortalUrl(payload) : '';
+        const portalHost = showPortal ? formatPortalHost(portalUrl) : '';
         setText('portal-host', portalHost, '');
         const portalHostEl = document.getElementById('portal-host');
         if (portalHostEl) {
@@ -383,39 +720,72 @@
         drawFinder(ctx, 0, size - 7, 7, cell);
     };
 
-    const renderQrCodes = (payload) => {
+    const renderQrCodes = (payload, mode) => {
         const portalBase = getPortalUrl(payload).replace(/\/$/, '');
-        const room = payload.options?.roomSurname?.room || '';
-        const surname = payload.options?.roomSurname?.surname || '';
-        const accessCode = payload.options?.accessCode?.code || '';
+        const pmsSource = payload.options?.pms ?? payload.options?.roomSurname ?? {};
+        const acSource = payload.options?.ac ?? payload.options?.accessCode ?? {};
+        const room = typeof pmsSource === 'string' ? pmsSource : (pmsSource.room || pmsSource.roomNumber || '');
+        const surname = typeof pmsSource === 'object' && pmsSource ? (pmsSource.surname || '') : '';
+        const accessCode = typeof acSource === 'string'
+            ? acSource
+            : (acSource.code || acSource.value || acSource.accessCode || '');
 
-        const roomUrl = payload.options?.roomSurname?.url ||
-            (room || surname ? `${portalBase}/room-login?room=${encodeURIComponent(room)}&surname=${encodeURIComponent(surname)}` : '');
-        const accessUrl = payload.options?.accessCode?.url ||
-            (accessCode ? `${portalBase}/access-code?code=${encodeURIComponent(accessCode)}` : '');
-        const freeUrl = payload.options?.freeAccess?.url || `${portalBase}/free`;
+        let targetUrl = '';
+        let fallback = '';
 
-        renderPseudoQr(document.getElementById('qr-room'), roomUrl || `${room}-${surname}`.trim());
-        renderPseudoQr(document.getElementById('qr-access'), accessUrl || accessCode);
-        renderPseudoQr(document.getElementById('qr-free'), freeUrl || 'free');
+        if (mode === 'ac') {
+            targetUrl = payload.options?.accessCode?.url || payload.options?.ac?.url ||
+                (accessCode ? `${portalBase}/access-code?code=${encodeURIComponent(accessCode)}` : '');
+            fallback = accessCode;
+        } else {
+            targetUrl = payload.options?.roomSurname?.url || payload.options?.pms?.url ||
+                (room || surname ? `${portalBase}/room-login?room=${encodeURIComponent(room)}&surname=${encodeURIComponent(surname)}` : '');
+            fallback = `${room}-${surname}`.trim();
+        }
+
+        renderPseudoQr(document.getElementById('qr-auth'), targetUrl || fallback);
     };
 
-    const applyLanguage = (lang, payload, device) => {
+    const applyLanguage = (lang, payload, mode, device, context) => {
         const dictionary = applyTranslations(lang);
-        renderStepText(lang, payload);
-        renderStepsList(payload, device, lang);
+        renderAuthCard(payload, mode, dictionary);
+        renderUpgradeSection(payload, dictionary);
+        renderStepsList(mode, device, lang, context);
 
         const title = document.querySelector('title');
         if (title) {
             title.textContent = page === 'upgrade' ? dictionary.upgradeTitle : dictionary.title;
         }
+
+        return dictionary;
     };
 
     const renderViewer = (payload) => {
-        renderSupport(payload);
-        renderOptions(payload);
-        renderUpgradeSection(payload);
-        renderQrCodes(payload);
+        const ssidCatalog = buildSsidCatalog(payload);
+        const mode = resolveMode(payload, ssidCatalog);
+        const ssidsForMode = ssidCatalog[mode] || [];
+        const freeSsids = ssidCatalog.free || [];
+        let currentSsid = ssidsForMode[0]?.name || payload.hotel?.ssid || 'Hotel-Guest';
+
+        const portalUrl = getPortalUrl(payload);
+        const portalHost = formatPortalHost(portalUrl);
+        const portalTarget = portalHost || portalUrl;
+        const showPortal = mode !== 'free' && !!portalTarget;
+
+        const authCard = document.getElementById('auth-card');
+        if (authCard) {
+            if (mode === 'free') {
+                authCard.classList.add('hidden');
+            } else {
+                authCard.classList.remove('hidden');
+            }
+        }
+
+        renderSupport(payload, currentSsid, showPortal);
+        renderFreeCard(payload, freeSsids);
+        if (mode !== 'free') {
+            renderQrCodes(payload, mode);
+        }
 
         const langSelect = document.getElementById('langSelect');
         const stored = window.localStorage ? window.localStorage.getItem('manual_lang') : null;
@@ -425,13 +795,33 @@
         }
 
         let currentDevice = payload.device?.default || 'generic';
-        const updateSteps = (device) => {
+        const updateSteps = (device, dictionary = null) => {
             currentDevice = device;
-            renderStepsList(payload, device, langSelect ? langSelect.value : initialLang);
+            const activeLang = langSelect ? langSelect.value : initialLang;
+            const dict = dictionary || translations[activeLang] || translations.en;
+            const authLabel = resolveAuthLabel(dict, mode);
+            renderStepsList(mode, device, activeLang, {
+                ssid: currentSsid,
+                portal: showPortal ? portalTarget : '',
+                auth: authLabel,
+            });
+        };
+
+        const updateSsid = (ssid) => {
+            currentSsid = ssid || currentSsid;
+            renderSupport(payload, currentSsid, showPortal);
+            updateSteps(currentDevice);
         };
 
         renderDeviceButtons(payload, initialLang, updateSteps, currentDevice);
-        applyLanguage(initialLang, payload, currentDevice);
+        renderSsidButtons(ssidsForMode, updateSsid, currentSsid);
+
+        const dictionary = applyLanguage(initialLang, payload, mode, currentDevice, {
+            ssid: currentSsid,
+            portal: showPortal ? portalTarget : '',
+            auth: resolveAuthLabel(translations[initialLang] || translations.en, mode),
+        });
+        updateSteps(currentDevice, dictionary);
 
         if (langSelect) {
             langSelect.addEventListener('change', () => {
@@ -439,22 +829,33 @@
                 if (window.localStorage) {
                     window.localStorage.setItem('manual_lang', lang);
                 }
+                const dict = applyLanguage(lang, payload, mode, currentDevice, {
+                    ssid: currentSsid,
+                    portal: showPortal ? portalTarget : '',
+                    auth: resolveAuthLabel(translations[lang] || translations.en, mode),
+                });
                 renderDeviceButtons(payload, lang, updateSteps, currentDevice);
-                applyLanguage(lang, payload, currentDevice);
+                updateSteps(currentDevice, dict);
             });
         }
     };
 
     const renderUpgrade = (payload) => {
-        renderSupport(payload);
-        const upgrade = payload.upgrade || {};
-        if (!upgrade.enabled) {
+        const ssidCatalog = buildSsidCatalog(payload);
+        const mode = resolveMode(payload, ssidCatalog);
+        const ssidName = ssidCatalog[mode]?.[0]?.name || payload.hotel?.ssid || 'Hotel-Guest';
+        const portalUrl = getPortalUrl(payload);
+        const portalHost = formatPortalHost(portalUrl);
+        const portalTarget = portalHost || portalUrl;
+        const showPortal = mode !== 'free' && !!portalTarget;
+
+        renderSupport(payload, ssidName, showPortal);
+        const upgrade = resolveUpgradeConfig(payload);
+        if (!(upgrade.enabled || upgrade.url)) {
             hideUpgradeCard();
             showError();
             return;
         }
-        setText('upgrade-title', upgrade.title || 'Improve connection');
-        setText('upgrade-body', upgrade.body || '');
 
         const langSelect = document.getElementById('langSelect');
         const stored = window.localStorage ? window.localStorage.getItem('manual_lang') : null;
@@ -462,7 +863,18 @@
         if (langSelect) {
             langSelect.value = initialLang;
         }
-        applyLanguage(initialLang, payload, 'generic');
+
+        const applyUpgradeText = (lang) => {
+            const dictionary = applyTranslations(lang);
+            setText('upgrade-title', dictionary.upgradeCardTitle || translations.en.upgradeCardTitle);
+            setText('upgrade-body', dictionary.upgradeBody || translations.en.upgradeBody);
+            const title = document.querySelector('title');
+            if (title) {
+                title.textContent = dictionary.upgradeTitle || translations.en.upgradeTitle;
+            }
+        };
+
+        applyUpgradeText(initialLang);
 
         if (langSelect) {
             langSelect.addEventListener('change', () => {
@@ -470,7 +882,7 @@
                 if (window.localStorage) {
                     window.localStorage.setItem('manual_lang', lang);
                 }
-                applyLanguage(lang, payload, 'generic');
+                applyUpgradeText(lang);
             });
         }
     };
@@ -491,6 +903,11 @@
                 renderUpgrade(payload);
             } else {
                 renderViewer(payload);
+                if (page === 'print') {
+                    window.setTimeout(() => {
+                        window.print();
+                    }, 250);
+                }
             }
         } catch (error) {
             showError();

@@ -22,22 +22,21 @@
                 <h1 data-i18n="title">Guest Wi-Fi Login</h1>
                 <p class="subtitle">
                     <span data-i18n="connectTo">Connect to</span>
-                    <strong id="hotel-ssid">Hotel-Guest</strong>
-                    <span data-i18n="wifiLabel">Wi-Fi</span>
+                    <strong id="hotel-ssid">Hotel-Guest</strong>         
                     <span class="dot hidden">•</span>
                     <span id="portal-host" class="hidden"></span>
                 </p>
             </div>
         </header>
 
-        <section class="step1">
-            <div class="step1__label" data-i18n="stepLabel">Step 1</div>
-            <div id="step1-text" class="step1__text"></div>
-        </section>
-
         <section class="device">
             <div class="device__label" data-i18n="deviceLabel">Device</div>
             <div id="device-buttons" class="device-buttons"></div>
+        </section>
+
+        <section id="ssid-section" class="device hidden">
+            <div class="device__label" data-i18n="ssidLabel">Network</div>
+            <div id="ssid-buttons" class="device-buttons"></div>
         </section>
 
         <section class="steps">
@@ -46,63 +45,28 @@
         </section>
 
         <section class="list">
-            <article class="card">
+            <article id="auth-card" class="card">
                 <div class="card__bar">
                     <div class="card__left">
-                        <span class="opt" data-i18n="option1">Option 1</span>
-                        <span class="opt__title" data-i18n="roomSurname">Room + Surname</span>
+                        <span id="auth-option-label" class="opt" data-i18n="option1">Option 1</span>
+                        <span id="auth-option-title" class="opt__title" data-i18n="roomSurname">Room + Surname</span>
                     </div>
                 </div>
 
                 <div class="card__body">
-                    <div class="qrCol">
-                        <canvas class="qr" id="qr-room" width="150" height="150"></canvas>
+                    <div id="auth-qr-col" class="qrCol">
+                        <canvas class="qr" id="qr-auth" width="150" height="150"></canvas>
                         <div class="qrHint" data-i18n="scanCamera">Scan with Camera</div>
                     </div>
 
                     <div class="dataCol">
-                        <div class="dataGrid">
-                            <div class="dataBox">
-                                <div class="dataLabel" data-i18n="roomNumber">Room number</div>
-                                <div id="room-value" class="dataValue">—</div>
-                            </div>
-                            <div class="dataBox">
-                                <div class="dataLabel" data-i18n="surname">Surname</div>
-                                <div id="surname-value" class="dataValue">—</div>
-                            </div>
-                        </div>
-                        <div class="cta" data-i18n="tapConnect">Tap <strong>Connect</strong></div>
+                        <div id="auth-fields" class="dataGrid"></div>
+                        <div id="auth-cta" class="cta" data-i18n="tapConnect">Tap <strong>Connect</strong></div>
                     </div>
                 </div>
             </article>
 
-            <article class="card">
-                <div class="card__bar">
-                    <div class="card__left">
-                        <span class="opt" data-i18n="option2">Option 2</span>
-                        <span class="opt__title" data-i18n="accessCode">Access code</span>
-                    </div>
-                </div>
-
-                <div class="card__body">
-                    <div class="qrCol">
-                        <canvas class="qr" id="qr-access" width="150" height="150"></canvas>
-                        <div class="qrHint" data-i18n="scanCamera">Scan with Camera</div>
-                    </div>
-
-                    <div class="dataCol">
-                        <div class="dataGrid">
-                            <div class="dataBox">
-                                <div class="dataLabel" data-i18n="accessCodeLabel">Access code</div>
-                                <div id="access-code-value" class="dataValue mono">—</div>
-                            </div>
-                        </div>
-                        <div class="cta" data-i18n="tapConnect">Tap <strong>Connect</strong></div>
-                    </div>
-                </div>
-            </article>
-
-            <article class="card card--free">
+            <article id="free-card" class="card card--free hidden">
                 <div class="card__bar">
                     <div class="card__left">
                         <span class="opt opt--free" data-i18n="option3">Option 3</span>
@@ -111,14 +75,13 @@
                     <div class="card__right" data-i18n="noDetails">No details required</div>
                 </div>
 
-                <div class="card__body">
-                    <div class="qrCol">
-                        <canvas class="qr" id="qr-free" width="150" height="150"></canvas>
-                        <div class="qrHint" data-i18n="scanCamera">Scan with Camera</div>
-                    </div>
-
+                <div class="card__body card__body--single">
                     <div class="dataCol">
                         <div class="dataGrid">
+                            <div class="dataBox">
+                                <div class="dataLabel" data-i18n="networkLabel">Network</div>
+                                <div id="free-ssid-value" class="dataValue mono">—</div>
+                            </div>
                             <div class="dataBox">
                                 <div class="dataLabel" data-i18n="action">Action</div>
                                 <div class="dataValue" data-i18n="tapConnectContinue">Tap <strong>Connect</strong> / <strong>Continue</strong></div>

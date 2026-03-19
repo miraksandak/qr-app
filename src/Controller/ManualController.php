@@ -21,40 +21,29 @@ class ManualController extends AbstractController
     private const DEFAULT_TEMPLATE = [
         'hotel' => [
             'name' => 'Hotel Guest',
-            'ssid' => 'Hotel-Guest',
             'supportText' => 'Need help? Contact reception.',
             'logoUrl' => '/media/mik-logo.png',
+            'footerText' => null,
+            'portalUrl' => null,
+            'ssids' => [
+                ['name' => 'Hotel-Guest', 'usage' => 'pms'],
+            ],
+            'upgrade' => [
+                'enabled' => false,
+                'url' => null,
+            ],
         ],
         'device' => [
             'default' => 'generic',
             'available' => ['android', 'ios', 'generic'],
         ],
-        'steps' => [
-            'android' => [
-                'Open Wi-Fi settings on your phone.',
-                'Select the hotel network.',
-                'Enter the login details and tap Connect.',
-            ],
-            'ios' => [
-                'Open Settings and tap Wi-Fi.',
-                'Choose the hotel network.',
-                'Fill in the login details and tap Join.',
-            ],
-            'generic' => [
-                'Open Wi-Fi settings on your device.',
-                'Select the hotel network.',
-                'Provide the login details and connect.',
-            ],
-        ],
         'options' => [
+            'mode' => 'roomSurname',
             'roomSurname' => ['room' => '606', 'surname' => 'Doe'],
             'accessCode' => ['code' => 'ABCD-1234'],
-            'freeAccess' => [],
-        ],
-        'upgrade' => [
-            'enabled' => true,
-            'title' => 'Improve connection',
-            'body' => 'If connected but experiencing issues, open this page.',
+            'freeAccess' => [
+                'enabled' => false,
+            ],
         ],
     ];
 
@@ -92,6 +81,8 @@ class ManualController extends AbstractController
             return new JsonResponse(['error' => 'Payload must be a JSON object'], Response::HTTP_BAD_REQUEST);
         }
 
+        $payload = $this->sanitizePayload($payload);
+
         try {
             $validUntil = $this->resolveValidUntil($payload);
         } catch (\InvalidArgumentException $exception) {
@@ -123,6 +114,7 @@ class ManualController extends AbstractController
             'id' => $id,
             'viewerUrl' => $viewerBase . '/' . $id,
             'jsonUrl' => $viewerBase . '/json/' . $id,
+            'printUrl' => $viewerBase . '/print/' . $id,
             'validUntil' => $validUntil->format(\DateTimeInterface::ATOM),
         ];
 
@@ -151,6 +143,22 @@ class ManualController extends AbstractController
         return $this->render('manual/upgrade.html.twig', [
             'id' => strtoupper($id),
             'page' => 'upgrade',
+            'baseViewerUrl' => $this->normalizeBaseUrl($this->baseViewerUrl),
+            'baseUpgradeUrl' => $this->normalizeBaseUrl($this->baseUpgradeUrl),
+        ]);
+    }
+
+    #[Route('/print/{id}', name: 'manual_print', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'])]
+    public function print(string $id, ManualRecordRepository $repository): Response
+    {
+        $record = $this->findActiveRecord($id, $repository);
+        if ($record === null) {
+            throw new NotFoundHttpException('Not found');
+        }
+
+        return $this->render('manual/viewer.html.twig', [
+            'id' => strtoupper($id),
+            'page' => 'print',
             'baseViewerUrl' => $this->normalizeBaseUrl($this->baseViewerUrl),
             'baseUpgradeUrl' => $this->normalizeBaseUrl($this->baseUpgradeUrl),
         ]);
@@ -261,6 +269,21 @@ class ManualController extends AbstractController
         }
 
         return $base;
+    }
+
+    private function sanitizePayload(array $payload): array
+    {
+        unset($payload['steps']);
+
+        if (isset($payload['upgrade']) && is_array($payload['upgrade'])) {
+            unset($payload['upgrade']['title'], $payload['upgrade']['body']);
+        }
+
+        if (isset($payload['hotel']['upgrade']) && is_array($payload['hotel']['upgrade'])) {
+            unset($payload['hotel']['upgrade']['title'], $payload['hotel']['upgrade']['body']);
+        }
+
+        return $payload;
     }
 
     private function isList(array $value): bool

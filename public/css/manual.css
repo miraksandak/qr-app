@@ -249,6 +249,10 @@ h1{
   padding: 12px;
 }
 
+.card__body--single{
+  grid-template-columns: 1fr;
+}
+
 .qrCol{
   display:grid;
   justify-items: center;
