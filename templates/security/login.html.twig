@@ -1,0 +1,44 @@
+{% extends "base.html.twig" %}
+
+{% block title %}Connector Login{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+{% endblock %}
+
+{% block javascripts %}{% endblock %}
+
+{% block body %}
+    <main class="login-shell">
+        <section class="login-card">
+            <div class="brand-lockup brand-lockup--login">
+                <div class="brand-lockup__badge brand-lockup__badge--login">
+                    <img class="brand-lockup__logo" src="{{ asset('media/mik-logo.png') }}" alt="Mikenopa">
+                </div>
+            </div>
+            <p class="login-card__eyebrow">External Connector</p>
+            <h1>Login</h1>
+            <p class="login-card__copy">Sign in through the external OAuth connector. After a successful login, the app loads every hotel the user can access.</p>
+
+            {% if error %}
+                <div class="notice notice--error">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+            {% endif %}
+
+            <form method="post" action="{{ loginRoute }}" class="form form--login">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input id="username" class="input" type="text" name="_username" value="{{ lastUsername }}" autocomplete="username" required autofocus>
+                </div>
+
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input id="password" class="input" type="password" name="_password" autocomplete="current-password" required>
+                </div>
+
+                <button class="button button--primary" type="submit">Login</button>
+            </form>
+        </section>
+    </main>
+{% endblock %}

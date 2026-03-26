@@ -9,9 +9,9 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-class MainController extends AbstractController
+class HotelSettingsController extends AbstractController
 {
-    #[Route('/', name: 'app_access', methods: ['GET'])]
+    #[Route('/settings/hotels', name: 'app_hotel_settings', methods: ['GET'])]
     public function index(Request $request, HotelConfigurationManager $hotelConfigurationManager): Response
     {
         $user = $this->getUser();
@@ -21,7 +21,7 @@ class MainController extends AbstractController
 
         $selectedHotel = $this->resolveSelectedHotel($request, $user);
 
-        return $this->render('access/index.html.twig', [
+        return $this->render('hotel/settings.html.twig', [
             'user' => $user,
             'accessibleHotels' => $hotelConfigurationManager->buildAccessibleHotelList($user->getAccessibleHotels()),
             'selectedHotel' => $selectedHotel,

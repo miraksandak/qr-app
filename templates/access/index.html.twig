@@ -1,0 +1,198 @@
+{% extends "base.html.twig" %}
+
+{% block title %}Access Configuration{% endblock %}
+
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+{% endblock %}
+
+{% block javascripts %}
+    <script src="{{ asset('js/access.js') }}" defer></script>
+{% endblock %}
+
+{% block body %}
+    <main class="app-shell">
+        <aside class="app-rail">
+            <div class="brand-lockup">
+                <div class="brand-lockup__badge">
+                    <img class="brand-lockup__logo" src="{{ asset('media/mik-logo.png') }}" alt="Mikenopa">
+                </div>
+            </div>
+            <p class="app-rail__eyebrow">QR Access</p>
+            <h1>Access Configuration</h1>
+            <p class="app-rail__copy">Choose a hotel, enter the access details, and generate the document. Hotel configuration stays on a separate page so the main workflow stays focused.</p>
+
+            <nav class="app-nav">
+                <a class="app-nav__item app-nav__item--active" href="{{ path('app_access', selectedHotel ? {hotel: selectedHotel.externalHotelId} : {}) }}">Access Document</a>
+                <a class="app-nav__item" href="{{ path('app_hotel_settings', selectedHotel ? {hotel: selectedHotel.externalHotelId} : {}) }}">Hotel Configuration</a>
+                <a class="app-nav__item" href="{{ path('app_logout') }}">Logout</a>
+            </nav>
+
+            <section class="rail-card">
+                <h2>Open Existing</h2>
+                <p>Enter an existing document ID and open the viewer.</p>
+                <form id="open-form" class="stack-form">
+                    <input id="open-id" class="input" type="text" maxlength="5" placeholder="ABCDE" autocomplete="off">
+                    <button class="button" type="submit">Open Viewer</button>
+                </form>
+            </section>
+        </aside>
+
+        <div class="app-main">
+            <header class="page-head">
+                <div>
+                    <p class="page-head__eyebrow">Logged In As</p>
+                    <h2>{{ user.displayName }}</h2>
+                </div>
+                <div class="page-head__meta">
+                    <span class="pill">{{ accessibleHotels|length }} hotel{{ accessibleHotels|length == 1 ? '' : 's' }}</span>
+                    {% if selectedHotelState and selectedHotelState.meta.persisted %}
+                        <span class="pill pill--success">Configured</span>
+                    {% elseif selectedHotel %}
+                        <span class="pill pill--warning">Default On First Create</span>
+                    {% endif %}
+                </div>
+            </header>
+
+            <section class="panel panel--selector">
+                <form method="get" action="{{ path('app_access') }}" class="selector-form">
+                    <div class="field">
+                        <label for="hotel-selector">Hotel</label>
+                        <select id="hotel-selector" class="input" name="hotel" onchange="this.form.submit()">
+                            {% for hotel in accessibleHotels %}
+                                <option value="{{ hotel.externalHotelId }}" {% if selectedHotel and hotel.externalHotelId == selectedHotel.externalHotelId %}selected{% endif %}>
+                                    {{ hotel.name ?: hotel.externalHotelId }}
+                                </option>
+                            {% else %}
+                                <option value="">No accessible hotels</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+
+                {% if selectedHotel %}
+                    <div class="selector-summary">
+                        <div>
+                            <span class="selector-summary__label">Selected hotel</span>
+                            <strong>{{ selectedHotel.displayName }}</strong>
+                        </div>
+                        <div>
+                            <span class="selector-summary__label">External ID</span>
+                            <code>{{ selectedHotel.externalHotelId }}</code>
+                        </div>
+                    </div>
+                {% endif %}
+            </section>
+
+            {% if accessibleHotels is empty %}
+                <section class="panel">
+                    <div class="notice notice--warning">The connector login succeeded, but no accessible hotels were returned for this user.</div>
+                </section>
+            {% elseif selectedHotel %}
+                <section class="panel">
+                    <div class="panel-head">
+                        <div>
+                            <p class="panel-head__eyebrow">Primary Workflow</p>
+                            <h3>Create Access Document</h3>
+                        </div>
+                        <p class="panel-head__copy">Saved hotel configuration is used as the base. If this hotel does not exist locally yet, the first document creation will create a safe default configuration.</p>
+                    </div>
+
+                    {% if selectedHotelState and not selectedHotelState.meta.persisted %}
+                        <div class="notice notice--warning">This hotel does not have a local configuration yet. The first document will create a default setup with safe values and risky features disabled.</div>
+                    {% endif %}
+
+                    <form
+                        id="access-form"
+                        class="form"
+                        data-create-url="{{ path('app_api_manual_create') }}"
+                        data-selected-hotel-id="{{ selectedHotel.externalHotelId }}"
+                    >
+                        <div class="grid grid--two">
+                            <div class="field">
+                                <label for="validUntil">Valid Until</label>
+                                <input id="validUntil" class="input" type="text" placeholder="2026-03-01T12:00:00+00:00">
+                            </div>
+                            <div class="field">
+                                <label for="authMode">Primary Option</label>
+                                <select id="authMode" class="input">
+                                    <option value="roomSurname" {% if selectedHotelState and selectedHotelState.configuration.primaryAuthMode == 'roomSurname' %}selected{% endif %}>Room + Surname</option>
+                                    <option value="accessCode" {% if selectedHotelState and selectedHotelState.configuration.primaryAuthMode == 'accessCode' %}selected{% endif %}>Access Code</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field field--inline">
+                            <label><input id="freeEnabled" type="checkbox"> Enable free access</label>
+                        </div>
+
+                        <section id="roomSurnameFields" class="option-card">
+                            <div class="option-card__head">
+                                <span class="pill">Option</span>
+                                <h4>Room + Surname</h4>
+                            </div>
+                            <div class="grid grid--two">
+                                <div class="field">
+                                    <label for="roomNumber">Room Number</label>
+                                    <input id="roomNumber" class="input" type="text" value="606">
+                                </div>
+                                <div class="field">
+                                    <label for="surname">Surname</label>
+                                    <input id="surname" class="input" type="text" value="Doe">
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="accessCodeFields" class="option-card hidden">
+                            <div class="option-card__head">
+                                <span class="pill">Option</span>
+                                <h4>Access Code</h4>
+                            </div>
+                            <div class="grid grid--one">
+                                <div class="field">
+                                    <label for="accessCode">Access Code</label>
+                                    <input id="accessCode" class="input" type="text" value="ABCD-1234">
+                                </div>
+                            </div>
+                        </section>
+
+                        <div id="form-error" class="notice notice--error hidden"></div>
+
+                        <div class="actions">
+                            <button class="button button--primary" type="submit">Create Access Document</button>
+                            <a class="button" href="{{ path('app_hotel_settings', {hotel: selectedHotel.externalHotelId}) }}">Open Hotel Configuration</a>
+                        </div>
+                    </form>
+                </section>
+
+                <section id="result-panel" class="panel hidden">
+                    <div class="panel-head">
+                        <div>
+                            <p class="panel-head__eyebrow">Created</p>
+                            <h3>Document Links</h3>
+                        </div>
+                    </div>
+
+                    <div class="result-grid">
+                        <a id="result-viewer" class="result-card" href="#" target="_blank" rel="noreferrer">
+                            <span>Viewer</span>
+                            <strong></strong>
+                        </a>
+                        <a id="result-json" class="result-card" href="#" target="_blank" rel="noreferrer">
+                            <span>JSON</span>
+                            <strong></strong>
+                        </a>
+                        <a id="result-print" class="result-card" href="#" target="_blank" rel="noreferrer">
+                            <span>Print</span>
+                            <strong></strong>
+                        </a>
+                        <a id="result-upgrade" class="result-card" href="#" target="_blank" rel="noreferrer">
+                            <span>Upgrade</span>
+                            <strong></strong>
+                        </a>
+                    </div>
+                </section>
+            {% endif %}
+        </div>
+    </main>
+{% endblock %}

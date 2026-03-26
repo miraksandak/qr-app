@@ -2,8 +2,11 @@
 
 namespace App\Controller;
 
+use App\Connector\ExternalHotelAccess;
 use App\Entity\ManualRecord;
 use App\Repository\ManualRecordRepository;
+use App\Security\ExternalUser;
+use App\Service\HotelConfigurationManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -21,13 +24,11 @@ class ManualController extends AbstractController
     private const DEFAULT_TEMPLATE = [
         'hotel' => [
             'name' => 'Hotel Guest',
-            'supportText' => 'Need help? Contact reception.',
-            'logoUrl' => '/media/mik-logo.png',
+            'supportText' => null,
+            'logoUrl' => null,
             'footerText' => null,
             'portalUrl' => null,
-            'ssids' => [
-                ['name' => 'Hotel-Guest', 'usage' => 'pms'],
-            ],
+            'ssids' => [],
             'upgrade' => [
                 'enabled' => false,
                 'url' => null,
@@ -49,8 +50,6 @@ class ManualController extends AbstractController
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        #[Autowire('%env(API_KEY)%')]
-        private string $apiKey,
         #[Autowire('%env(BASE_VIEWER_URL)%')]
         private string $baseViewerUrl,
         #[Autowire('%env(BASE_UPGRADE_URL)%')]
@@ -61,13 +60,12 @@ class ManualController extends AbstractController
     }
 
     #[Route('/api/manual', name: 'api_manual_create', methods: ['POST'])]
-    public function createManual(Request $request, ManualRecordRepository $repository): JsonResponse
-    {
-        $apiKey = (string) $request->headers->get('X-API-Key');
-        if ($apiKey !== $this->apiKey) {
-            return new JsonResponse(['error' => 'Unauthorized'], Response::HTTP_UNAUTHORIZED);
-        }
-
+    #[Route('/app/api/manual', name: 'app_api_manual_create', methods: ['POST'])]
+    public function createManual(
+        Request $request,
+        ManualRecordRepository $repository,
+        HotelConfigurationManager $hotelConfigurationManager
+    ): JsonResponse {
         $rawContent = trim((string) $request->getContent());
         $rawContent = $rawContent === '' ? '{}' : $rawContent;
 
@@ -81,6 +79,11 @@ class ManualController extends AbstractController
             return new JsonResponse(['error' => 'Payload must be a JSON object'], Response::HTTP_BAD_REQUEST);
         }
 
+        $hotelExternalId = $this->extractHotelExternalId($payload);
+        if ($hotelExternalId === null) {
+            return new JsonResponse(['error' => 'hotelExternalId is required'], Response::HTTP_BAD_REQUEST);
+        }
+
         $payload = $this->sanitizePayload($payload);
 
         try {
@@ -89,7 +92,18 @@ class ManualController extends AbstractController
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_BAD_REQUEST);
         }
 
-        $mergedPayload = $this->deepMerge(self::DEFAULT_TEMPLATE, $payload);
+        $accessibleHotel = $this->findAccessibleHotel($hotelExternalId);
+        if ($accessibleHotel === null) {
+            return new JsonResponse(['error' => 'Forbidden'], Response::HTTP_FORBIDDEN);
+        }
+
+        $hotel = $hotelConfigurationManager->ensureHotelWithConfiguration($accessibleHotel);
+
+        $mergedPayload = $this->deepMerge(
+            self::DEFAULT_TEMPLATE,
+            $hotelConfigurationManager->buildManualHotelPayload($hotel)
+        );
+        $mergedPayload = $this->deepMerge($mergedPayload, $payload);
 
         try {
             $payloadJson = json_encode($mergedPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -116,12 +130,13 @@ class ManualController extends AbstractController
             'jsonUrl' => $viewerBase . '/json/' . $id,
             'printUrl' => $viewerBase . '/print/' . $id,
             'validUntil' => $validUntil->format(\DateTimeInterface::ATOM),
+            'hotelExternalId' => $hotelExternalId,
         ];
 
         return new JsonResponse($response, Response::HTTP_CREATED);
     }
 
-    #[Route('/json/{id}', name: 'manual_json', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'])]
+    #[Route('/json/{id}', name: 'manual_json', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
     public function manualJson(string $id, ManualRecordRepository $repository): JsonResponse
     {
         $record = $this->findActiveRecord($id, $repository);
@@ -132,7 +147,7 @@ class ManualController extends AbstractController
         return new JsonResponse($record->getPayloadJson(), Response::HTTP_OK, [], true);
     }
 
-    #[Route('/upgrade/{id}', name: 'manual_upgrade', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'])]
+    #[Route('/upgrade/{id}', name: 'manual_upgrade', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
     public function upgrade(string $id, ManualRecordRepository $repository): Response
     {
         $record = $this->findActiveRecord($id, $repository);
@@ -148,7 +163,7 @@ class ManualController extends AbstractController
         ]);
     }
 
-    #[Route('/print/{id}', name: 'manual_print', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'])]
+    #[Route('/print/{id}', name: 'manual_print', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
     public function print(string $id, ManualRecordRepository $repository): Response
     {
         $record = $this->findActiveRecord($id, $repository);
@@ -164,7 +179,7 @@ class ManualController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'manual_viewer', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'])]
+    #[Route('/{id}', name: 'manual_viewer', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: -100)]
     public function viewer(string $id, ManualRecordRepository $repository): Response
     {
         $record = $this->findActiveRecord($id, $repository);
@@ -273,7 +288,11 @@ class ManualController extends AbstractController
 
     private function sanitizePayload(array $payload): array
     {
-        unset($payload['steps']);
+        unset($payload['steps'], $payload['hotelExternalId']);
+
+        if (isset($payload['hotel']) && is_array($payload['hotel'])) {
+            unset($payload['hotel']['externalHotelId']);
+        }
 
         if (isset($payload['upgrade']) && is_array($payload['upgrade'])) {
             unset($payload['upgrade']['title'], $payload['upgrade']['body']);
@@ -284,6 +303,16 @@ class ManualController extends AbstractController
         }
 
         return $payload;
+    }
+
+    private function extractHotelExternalId(array $payload): ?string
+    {
+        $hotelExternalId = $payload['hotelExternalId'] ?? $payload['hotel']['externalHotelId'] ?? null;
+        if (!is_string($hotelExternalId) || trim($hotelExternalId) === '') {
+            return null;
+        }
+
+        return trim($hotelExternalId);
     }
 
     private function isList(array $value): bool
@@ -297,5 +326,20 @@ class ManualController extends AbstractController
         }
 
         return true;
+    }
+
+    private function getAuthenticatedUser(): ExternalUser
+    {
+        $user = $this->getUser();
+        if (!$user instanceof ExternalUser) {
+            throw $this->createAccessDeniedException('External user is required.');
+        }
+
+        return $user;
+    }
+
+    private function findAccessibleHotel(string $externalHotelId): ?ExternalHotelAccess
+    {
+        return $this->getAuthenticatedUser()->findAccessibleHotel($externalHotelId);
     }
 }
