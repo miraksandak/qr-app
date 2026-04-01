@@ -20,4 +20,12 @@ envcheck APP_ENV=default:prod .=enum:prod:test:dev
 envcheck APP_SECRET=default:7e0e13ce8d72716678be47a2c9d3ad15 .=re:'^[a-zA-Z0-9]+$'
 envcheck DATABASE_URL=url:schemes=mysql
 
+envcheck USE_REVERSE_PROXY=default:true .=bool
+
+if [ "$USE_REVERSE_PROXY" = 1 ]; then
+	export TRUSTED_PROXIES="REMOTE_ADDR"
+else
+	export TRUSTED_PROXIES=""
+fi
+
 export ADMINER_ENABLED=true
