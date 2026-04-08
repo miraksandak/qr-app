@@ -95,7 +95,7 @@
                                 type="search"
                                 name="q"
                                 value="{{ hotelBrowser.query }}"
-                                placeholder="Type to filter or press Enter to search all hotels"
+                                placeholder="Type to filter hotels"
                                 autocomplete="off"
                                 data-hotel-filter
                             >
@@ -107,7 +107,7 @@
                                     {{ hotel.displayName ?: hotel.externalHotelId }}
                                 </option>
                             {% else %}
-                                <option value="">No hotels on this page</option>
+                                <option value="">No matching hotels</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -125,27 +125,10 @@
                         </div>
                     {% endif %}
                     <div>
-                        <span class="selector-summary__label">Page</span>
-                        <strong>{{ hotelBrowser.pagination.page }}/{{ hotelBrowser.pagination.pageCount }}</strong>
+                        <span class="selector-summary__label">Available</span>
+                        <strong>{{ hotelBrowser.pagination.total }} hotel{{ hotelBrowser.pagination.total == 1 ? '' : 's' }}</strong>
                     </div>
                 </div>
-
-                {% if hotelBrowser.pagination.pageCount > 1 %}
-                    <nav class="pager" aria-label="Hotel pages">
-                        {% if hotelBrowser.pagination.page > 1 %}
-                            <a class="button" href="{{ path('app_access', {
-                                q: hotelBrowser.query,
-                                page: hotelBrowser.pagination.page - 1
-                            }) }}">Previous 50</a>
-                        {% endif %}
-                        {% if hotelBrowser.pagination.page < hotelBrowser.pagination.pageCount %}
-                            <a class="button" href="{{ path('app_access', {
-                                q: hotelBrowser.query,
-                                page: hotelBrowser.pagination.page + 1
-                            }) }}">Next 50</a>
-                        {% endif %}
-                    </nav>
-                {% endif %}
             </section>
 
             {% if hotelBrowser.pagination.total == 0 %}

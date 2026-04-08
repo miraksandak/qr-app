@@ -44,6 +44,57 @@ class MikenopaApiClientTest extends TestCase
         ], $requestUrls);
     }
 
+    public function testFetchAccessibleHotelsFollowsNextLinkHrefObjectFromApi(): void
+    {
+        $requestUrls = [];
+        $responses = [
+            new MockResponse(json_encode([
+                'data' => [
+                    ['id' => 'hotel-001', 'name' => 'Hotel 001'],
+                ],
+                'links' => [
+                    'next' => [
+                        'href' => '/hotels?page%5Bnumber%5D=2&page%5Bsize%5D=50',
+                    ],
+                ],
+                'meta' => [
+                    'pager' => [
+                        'totalResults' => 51,
+                        'pages' => 2,
+                        'currentPage' => 1,
+                        'pageSize' => 50,
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR)),
+            new MockResponse(json_encode([
+                'data' => [
+                    ['id' => 'hotel-002', 'name' => 'Hotel 002'],
+                ],
+                'links' => [
+                    'next' => null,
+                ],
+                'meta' => [
+                    'pager' => [
+                        'totalResults' => 51,
+                        'pages' => 2,
+                        'currentPage' => 2,
+                        'pageSize' => 50,
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR)),
+        ];
+
+        $client = $this->createClient($responses, $requestUrls);
+
+        $hotels = $client->fetchAccessibleHotels('access-token');
+
+        $this->assertCount(2, $hotels);
+        $this->assertSame([
+            'https://api.example.test/hotels',
+            'https://api.example.test/hotels?page%5Bnumber%5D=2&page%5Bsize%5D=50',
+        ], $requestUrls);
+    }
+
     public function testFetchAccessibleHotelsBuildsNextPageFromPaginationMetadata(): void
     {
         $requestUrls = [];
@@ -64,6 +115,45 @@ class MikenopaApiClientTest extends TestCase
                 'meta' => [
                     'current_page' => 2,
                     'last_page' => 2,
+                ],
+            ], JSON_THROW_ON_ERROR)),
+        ];
+
+        $client = $this->createClient($responses, $requestUrls);
+
+        $hotels = $client->fetchAccessibleHotels('access-token');
+
+        $this->assertCount(2, $hotels);
+        $this->assertSame([
+            'https://api.example.test/hotels',
+            'https://api.example.test/hotels?page=2',
+        ], $requestUrls);
+    }
+
+    public function testFetchAccessibleHotelsBuildsNextPageFromNestedPagerMetadata(): void
+    {
+        $requestUrls = [];
+        $responses = [
+            new MockResponse(json_encode([
+                'data' => [
+                    ['id' => 'hotel-001', 'name' => 'Hotel 001'],
+                ],
+                'meta' => [
+                    'pager' => [
+                        'currentPage' => 1,
+                        'pages' => 2,
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR)),
+            new MockResponse(json_encode([
+                'data' => [
+                    ['id' => 'hotel-002', 'name' => 'Hotel 002'],
+                ],
+                'meta' => [
+                    'pager' => [
+                        'currentPage' => 2,
+                        'pages' => 2,
+                    ],
                 ],
             ], JSON_THROW_ON_ERROR)),
         ];

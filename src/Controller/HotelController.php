@@ -30,7 +30,6 @@ class HotelController extends AbstractController
         $browser = $hotelConfigurationManager->buildAccessibleHotelBrowser(
             $user->getAccessibleHotels(),
             (string) $request->query->get('q', ''),
-            $request->query->has('page') ? (int) $request->query->get('page', 1) : null,
             (string) $request->query->get('hotel', '')
         );
 

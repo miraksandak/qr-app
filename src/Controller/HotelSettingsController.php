@@ -26,7 +26,6 @@ class HotelSettingsController extends AbstractController
         $hotelBrowser = $hotelConfigurationManager->buildAccessibleHotelBrowser(
             $user->getAccessibleHotels(),
             (string) $request->query->get('q', ''),
-            $request->query->has('page') ? (int) $request->query->get('page', 1) : null,
             (string) $request->query->get('hotel', '')
         );
         $selectedHotel = $this->resolveSelectedHotel($hotelBrowser['selectedExternalHotelId'], $user);

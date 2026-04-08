@@ -423,6 +423,15 @@ final class MikenopaApiClient implements ExternalConnectorClientInterface
             if (is_string($value) && trim($value) !== '') {
                 return trim($value);
             }
+
+            if (is_array($value)) {
+                foreach (['href', 'url', 'link'] as $nestedKey) {
+                    $nestedValue = $value[$nestedKey] ?? null;
+                    if (is_string($nestedValue) && trim($nestedValue) !== '') {
+                        return trim($nestedValue);
+                    }
+                }
+            }
         }
 
         return null;
@@ -430,7 +439,16 @@ final class MikenopaApiClient implements ExternalConnectorClientInterface
 
     private function buildNextPageUrlFromMetadata(array $payload, string $currentUrl): ?string
     {
-        foreach ([$payload['meta'] ?? null, $payload['pagination'] ?? null, $payload] as $container) {
+        $metadataContainers = [
+            $payload['meta']['pager'] ?? null,
+            $payload['meta'] ?? null,
+            $payload['pagination']['pager'] ?? null,
+            $payload['pagination'] ?? null,
+            $payload['pager'] ?? null,
+            $payload,
+        ];
+
+        foreach ($metadataContainers as $container) {
             if (!is_array($container)) {
                 continue;
             }

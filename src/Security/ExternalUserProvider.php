@@ -22,6 +22,7 @@ use Symfony\Component\Security\Core\User\UserProviderInterface;
 final class ExternalUserProvider implements UserProviderInterface
 {
     private const UNRESOLVED_AUTHORIZATION_REFRESH_SECONDS = 30;
+    private const SUSPICIOUS_TRUNCATED_HOTELS_COUNT = 50;
 
     private const ROLE_KEYS = [
         'role',
@@ -214,8 +215,11 @@ final class ExternalUserProvider implements UserProviderInterface
             && !$user->canManageHotelSettings()
             && !$user->canAccessAllHotels()
             && $secondsSinceSync >= min(self::UNRESOLVED_AUTHORIZATION_REFRESH_SECONDS, $this->refreshIntervalSeconds);
+        $shouldRefreshPossiblyTruncatedHotels = !$user->isInternalApiUser()
+            && $user->canAccessAllHotels()
+            && count($user->getAccessibleHotels()) === self::SUSPICIOUS_TRUNCATED_HOTELS_COUNT;
 
-        if ($secondsSinceSync < $this->refreshIntervalSeconds && !$shouldRefreshUnresolvedAuthorization) {
+        if ($secondsSinceSync < $this->refreshIntervalSeconds && !$shouldRefreshUnresolvedAuthorization && !$shouldRefreshPossiblyTruncatedHotels) {
             return $this->rememberUser($user);
         }
 

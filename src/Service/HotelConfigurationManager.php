@@ -11,8 +11,6 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class HotelConfigurationManager
 {
-    public const DEFAULT_PAGE_SIZE = 50;
-
     private const ALLOWED_AUTH_MODES = ['roomSurname', 'accessCode'];
     private const ALLOWED_DEVICE_TYPES = ['android', 'ios', 'generic'];
     private const ALLOWED_PMS_CREDENTIAL_FIELDS = ['roomNumber', 'surname', 'firstName', 'checkinNumber', 'password'];
@@ -77,9 +75,7 @@ class HotelConfigurationManager
     public function buildAccessibleHotelBrowser(
         array $accessibleHotels,
         string $query = '',
-        ?int $page = null,
-        ?string $selectedExternalHotelId = null,
-        int $pageSize = self::DEFAULT_PAGE_SIZE
+        ?string $selectedExternalHotelId = null
     ): array {
         $allHotels = $this->buildAccessibleHotelList($accessibleHotels);
         $normalizedQuery = mb_strtolower(trim($query));
@@ -97,46 +93,28 @@ class HotelConfigurationManager
             }));
         }
 
-        $pageSize = max(1, min(self::DEFAULT_PAGE_SIZE, $pageSize));
         $total = count($allHotels);
-        $pageCount = max(1, (int) ceil($total / $pageSize));
 
-        $selectedIndex = null;
+        $resolvedSelectedExternalHotelId = null;
         if (is_string($selectedExternalHotelId) && $selectedExternalHotelId !== '') {
-            foreach ($allHotels as $index => $hotel) {
+            foreach ($allHotels as $hotel) {
                 if (($hotel['externalHotelId'] ?? null) === $selectedExternalHotelId) {
-                    $selectedIndex = $index;
+                    $resolvedSelectedExternalHotelId = $selectedExternalHotelId;
                     break;
                 }
             }
         }
 
-        if ($page === null && $selectedIndex !== null) {
-            $page = (int) floor($selectedIndex / $pageSize) + 1;
-        }
-
-        $page ??= 1;
-        $page = max(1, min($pageCount, $page));
-        $offset = ($page - 1) * $pageSize;
-        $items = array_slice($allHotels, $offset, $pageSize);
-
-        $resolvedSelectedExternalHotelId = null;
-        $selectedIsOnCurrentPage = $selectedIndex !== null
-            && $selectedIndex >= $offset
-            && $selectedIndex < ($offset + count($items));
-
-        if ($selectedIsOnCurrentPage) {
-            $resolvedSelectedExternalHotelId = $selectedExternalHotelId;
-        } elseif ($items !== []) {
-            $resolvedSelectedExternalHotelId = $items[0]['externalHotelId'] ?? null;
+        if ($resolvedSelectedExternalHotelId === null && $allHotels !== []) {
+            $resolvedSelectedExternalHotelId = $allHotels[0]['externalHotelId'] ?? null;
         }
 
         return [
-            'items' => $items,
+            'items' => $allHotels,
             'pagination' => [
-                'page' => $page,
-                'pageSize' => $pageSize,
-                'pageCount' => $pageCount,
+                'page' => $total > 0 ? 1 : 0,
+                'pageSize' => $total,
+                'pageCount' => $total > 0 ? 1 : 0,
                 'total' => $total,
             ],
             'query' => trim($query),
