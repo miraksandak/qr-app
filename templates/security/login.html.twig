@@ -16,10 +16,7 @@
                     <img class="brand-lockup__logo" src="{{ asset('media/mik-logo.png') }}" alt="Mikenopa">
                 </div>
             </div>
-            <p class="login-card__eyebrow">External Connector</p>
             <h1>Login</h1>
-            <p class="login-card__copy">Sign in through the external OAuth connector. After a successful login, the app loads every hotel the user can access.</p>
-
             {% if error %}
                 <div class="notice notice--error">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
             {% endif %}

@@ -7,10 +7,19 @@
 {% endblock %}
 
 {% block javascripts %}
+    <script src="{{ asset('js/hotel-picker.js') }}" defer></script>
     <script src="{{ asset('js/hotel-settings.js') }}" defer></script>
 {% endblock %}
 
 {% block body %}
+    {% set missingLabels = {
+        portalUrl: 'Portal URL',
+        pmsProvider: 'PMS',
+        pmsCredentialFields: 'PMS fields',
+        ssids: 'SSID list'
+    } %}
+    {% set config = selectedHotelState.configuration ?? null %}
+
     <main class="app-shell">
         <header class="app-topbar">
             <div class="app-topbar__brand">
@@ -30,7 +39,7 @@
                     <p class="page-head__eyebrow">Logged In As</p>
                     <strong>{{ user.displayName }}</strong>
                 </div>
-                <span class="pill">{{ accessibleHotels|length }} hotel{{ accessibleHotels|length == 1 ? '' : 's' }}</span>
+                <span class="pill">{{ hotelBrowser.pagination.total }} hotel{{ hotelBrowser.pagination.total == 1 ? '' : 's' }}</span>
                 {% if selectedHotel and (not selectedHotelState or not selectedHotelState.meta.persisted) %}
                     <span class="pill pill--warning">Preview Defaults</span>
                 {% endif %}
@@ -47,7 +56,9 @@
         </header>
 
         <nav class="app-tabs" aria-label="Primary">
-            <a class="app-tab" href="{{ path('app_access', selectedHotel ? {hotel: selectedHotel.externalHotelId} : {}) }}">Access</a>
+            {% if permissions.access %}
+                <a class="app-tab" href="{{ path('app_access', selectedHotel ? {hotel: selectedHotel.externalHotelId} : {}) }}">Access</a>
+            {% endif %}
             <a class="app-tab app-tab--active" href="{{ path('app_hotel_settings', selectedHotel ? {hotel: selectedHotel.externalHotelId} : {}) }}">Hotel Settings</a>
         </nav>
 
@@ -60,23 +71,36 @@
             </header>
 
             <section class="panel panel--selector">
-                <form method="get" action="{{ path('app_hotel_settings') }}" class="selector-form">
-                    <div class="field">
-                        <label for="hotel-selector">Hotel</label>
-                        <select id="hotel-selector" class="input" name="hotel" onchange="this.form.submit()">
-                            {% for hotel in accessibleHotels %}
+                <form method="get" action="{{ path('app_hotel_settings') }}" class="selector-form selector-form--picker" data-hotel-picker>
+                    <div class="hotel-picker">
+                        <div class="field">
+                            <label for="hotel-search">Hotel</label>
+                            <input
+                                id="hotel-search"
+                                class="input hotel-picker__search"
+                                type="search"
+                                name="q"
+                                value="{{ hotelBrowser.query }}"
+                                placeholder="Type to filter or press Enter to search all hotels"
+                                autocomplete="off"
+                                data-hotel-filter
+                            >
+                            <p class="field-help hotel-picker__status" data-hotel-filter-status></p>
+                        </div>
+                        <select id="hotel-selector" class="input hotel-picker__select" name="hotel" data-hotel-select onchange="this.form.submit()">
+                            {% for hotel in hotelBrowser.items %}
                                 <option value="{{ hotel.externalHotelId }}" {% if selectedHotel and hotel.externalHotelId == selectedHotel.externalHotelId %}selected{% endif %}>
-                                    {{ hotel.name ?: hotel.externalHotelId }}
+                                    {{ hotel.displayName ?: hotel.externalHotelId }}
                                 </option>
                             {% else %}
-                                <option value="">No accessible hotels</option>
+                                <option value="">No hotels on this page</option>
                             {% endfor %}
                         </select>
                     </div>
                 </form>
 
-                {% if selectedHotel %}
-                    <div class="selector-summary">
+                <div class="selector-summary">
+                    {% if selectedHotel %}
                         <div>
                             <span class="selector-summary__label">Selected hotel</span>
                             <strong>{{ selectedHotel.displayName }}</strong>
@@ -85,13 +109,34 @@
                             <span class="selector-summary__label">External ID</span>
                             <code>{{ selectedHotel.externalHotelId }}</code>
                         </div>
+                    {% endif %}
+                    <div>
+                        <span class="selector-summary__label">Page</span>
+                        <strong>{{ hotelBrowser.pagination.page }}/{{ hotelBrowser.pagination.pageCount }}</strong>
                     </div>
+                </div>
+
+                {% if hotelBrowser.pagination.pageCount > 1 %}
+                    <nav class="pager" aria-label="Hotel pages">
+                        {% if hotelBrowser.pagination.page > 1 %}
+                            <a class="button" href="{{ path('app_hotel_settings', {
+                                q: hotelBrowser.query,
+                                page: hotelBrowser.pagination.page - 1
+                            }) }}">Previous 50</a>
+                        {% endif %}
+                        {% if hotelBrowser.pagination.page < hotelBrowser.pagination.pageCount %}
+                            <a class="button" href="{{ path('app_hotel_settings', {
+                                q: hotelBrowser.query,
+                                page: hotelBrowser.pagination.page + 1
+                            }) }}">Next 50</a>
+                        {% endif %}
+                    </nav>
                 {% endif %}
             </section>
 
-            {% if accessibleHotels is empty %}
+            {% if hotelBrowser.pagination.total == 0 %}
                 <section class="panel">
-                    <div class="notice notice--warning">The connector login succeeded, but no accessible hotels were returned for this user.</div>
+                    <div class="notice notice--warning">No hotels match the current search.</div>
                 </section>
             {% elseif selectedHotel and selectedHotelState %}
                 <section class="panel">
@@ -103,10 +148,20 @@
                         <p class="panel-head__copy">Saved here and reused for new documents.</p>
                     </div>
 
+                    {% if selectedHotelState.meta.missingConfigurationFields is not empty %}
+                        <div class="notice-stack">
+                            <div class="notice notice--warning">
+                                Complete the hotel setup before access codes can be used:
+                                {{ selectedHotelState.meta.missingConfigurationFields|map(field => missingLabels[field] ?? field)|join(', ') }}.
+                            </div>
+                        </div>
+                    {% endif %}
+
                     <form
                         id="hotel-settings-form"
                         class="form"
                         data-save-url="{{ path('app_api_hotel_upsert', {externalHotelId: selectedHotel.externalHotelId}) }}"
+                        data-current-logo-url="{{ config.logoUrl ?? '' }}"
                     >
                         <div class="grid grid--two">
                             <div class="field">
@@ -114,96 +169,126 @@
                                 <input id="hotelName" class="input" type="text" value="{{ selectedHotelState.hotel.name ?? '' }}">
                             </div>
                             <div class="field">
-                                <label for="hotelLogo">Logo URL</label>
-                                <input id="hotelLogo" class="input" type="text" value="{{ selectedHotelState.configuration.logoUrl ?? '' }}">
+                                <label for="portalUrl">Portal URL</label>
+                                <input id="portalUrl" class="input" type="text" value="{{ config.portalUrl ?? '' }}" placeholder="https://portal.example.com">
                             </div>
                             <div class="field">
                                 <label for="hotelSupport">Support Text</label>
-                                <input id="hotelSupport" class="input" type="text" value="{{ selectedHotelState.configuration.supportText ?? '' }}">
+                                <input id="hotelSupport" class="input" type="text" value="{{ config.supportText ?? '' }}">
                             </div>
                             <div class="field">
                                 <label for="hotelFooter">Footer Text</label>
-                                <input id="hotelFooter" class="input" type="text" value="{{ selectedHotelState.configuration.footerText ?? '' }}">
+                                <input id="hotelFooter" class="input" type="text" value="{{ config.footerText ?? '' }}">
+                            </div>
+                            <div class="field">
+                                <label for="pmsProvider">PMS</label>
+                                <input id="pmsProvider" class="input" type="text" list="pmsProviderOptions" value="{{ config.pmsProvider ?? '' }}" placeholder="Select or type PMS">
+                                <datalist id="pmsProviderOptions">
+                                    <option value="Mews"></option>
+                                    <option value="Opera"></option>
+                                    <option value="Protel"></option>
+                                    <option value="Cloudbeds"></option>
+                                    <option value="Custom"></option>
+                                </datalist>
                             </div>
                         </div>
 
-                        <details id="advancedHotelSettings" class="advanced-block" {% if selectedHotelState.configuration.portalUrl or selectedHotelState.configuration.proxyApiBaseUrl or selectedHotelState.configuration.datacenterId %}open{% endif %}>
-                            <summary class="advanced-block__summary">
-                                <span>Advanced</span>
-                                <span class="advanced-block__hint">Only when the hotel needs it</span>
-                            </summary>
-                            <div class="grid grid--three">
-                                <div class="field">
-                                    <label for="portalUrl">Portal URL</label>
-                                    <input id="portalUrl" class="input" type="text" value="{{ selectedHotelState.configuration.portalUrl ?? '' }}">
-                                </div>
-                                <div class="field">
-                                    <label for="proxyApiBaseUrl">Proxy API Base URL</label>
-                                    <input id="proxyApiBaseUrl" class="input" type="text" value="{{ selectedHotelState.configuration.proxyApiBaseUrl ?? '' }}">
-                                </div>
-                                <div class="field">
-                                    <label for="datacenterId">Routing Key</label>
-                                    <input id="datacenterId" class="input" type="text" value="{{ selectedHotelState.configuration.datacenterId ?? '' }}">
+                        <section class="panel-sub">
+                            <div class="panel-head panel-head--compact">
+                                <div>
+                                    <p class="panel-head__eyebrow">Branding</p>
+                                    <h3>Logo</h3>
                                 </div>
                             </div>
-                        </details>
 
-                        <div class="grid grid--three">
-                            <div class="field">
-                                <label for="ssidPms">SSID (Room/PMS)</label>
-                                <input id="ssidPms" class="input" type="text" value="{{ selectedHotelState.configuration.ssids|filter(ssid => ssid.usage == 'pms')|map(ssid => ssid.name)|join(', ') }}">
+                            <div class="grid grid--logo">
+                                <div class="field">
+                                    <label for="logoUpload">Upload Logo</label>
+                                    <input id="logoUpload" class="input" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                                    <p class="field-help">Optional. Supported formats: PNG, JPG, GIF, WEBP.</p>
+                                    <label class="checkbox-line"><input id="removeLogo" type="checkbox"> Remove current logo</label>
+                                </div>
+                                <div class="logo-preview" id="logoPreview">
+                                    {% if config.logoUrl %}
+                                        <img id="logoPreviewImage" src="{{ config.logoUrl }}" alt="Current hotel logo">
+                                    {% else %}
+                                        <img id="logoPreviewImage" src="" alt="Current hotel logo" class="hidden">
+                                    {% endif %}
+                                    <p id="logoPreviewEmpty" class="logo-preview__empty {% if config.logoUrl %}hidden{% endif %}">No logo configured.</p>
+                                    {% if config.logoSourceUrl %}
+                                        <p class="field-help">Legacy URL logo is still in use.</p>
+                                    {% endif %}
+                                </div>
                             </div>
-                            <div class="field">
-                                <label for="ssidAccess">SSID (Access code)</label>
-                                <input id="ssidAccess" class="input" type="text" value="{{ selectedHotelState.configuration.ssids|filter(ssid => ssid.usage == 'ac')|map(ssid => ssid.name)|join(', ') }}">
+                        </section>
+
+                        <section class="panel-sub">
+                            <div class="panel-head panel-head--compact">
+                                <div>
+                                    <p class="panel-head__eyebrow">PMS Data</p>
+                                    <h3>Credential Fields</h3>
+                                </div>
+                                <p class="panel-head__copy">Room Number is always required. Select at least one more field.</p>
                             </div>
-                            <div class="field">
-                                <label for="ssidFree">SSID (Free access)</label>
-                                <input id="ssidFree" class="input" type="text" value="{{ selectedHotelState.configuration.ssids|filter(ssid => ssid.usage == 'free')|map(ssid => ssid.name)|join(', ') }}">
+
+                            <div class="checkbox-row checkbox-row--wrap">
+                                <label class="checkbox-line"><input type="checkbox" name="pmsCredentialField" value="roomNumber" checked disabled> Room Number</label>
+                                <label class="checkbox-line"><input type="checkbox" name="pmsCredentialField" value="surname" {% if 'surname' in config.pmsCredentialFields %}checked{% endif %}> Surname</label>
+                                <label class="checkbox-line"><input type="checkbox" name="pmsCredentialField" value="firstName" {% if 'firstName' in config.pmsCredentialFields %}checked{% endif %}> First Name</label>
+                                <label class="checkbox-line"><input type="checkbox" name="pmsCredentialField" value="checkinNumber" {% if 'checkinNumber' in config.pmsCredentialFields %}checked{% endif %}> Check-in Number</label>
+                                <label class="checkbox-line"><input type="checkbox" name="pmsCredentialField" value="password" {% if 'password' in config.pmsCredentialFields %}checked{% endif %}> Password</label>
                             </div>
-                        </div>
+                        </section>
+
+                        <section class="panel-sub">
+                            <div class="panel-head panel-head--compact">
+                                <div>
+                                    <p class="panel-head__eyebrow">Networks</p>
+                                    <h3>SSID List</h3>
+                                </div>
+                                <p class="panel-head__copy">Assign each SSID to the usages it should be available for.</p>
+                            </div>
+
+                            <div id="ssidRows" class="ssid-list" data-ssids="{{ config.ssids|default([])|json_encode|e('html_attr') }}"></div>
+                            <div class="actions actions--tight">
+                                <button id="addSsidRow" class="button" type="button">Add SSID</button>
+                            </div>
+                        </section>
 
                         <div class="grid grid--two">
                             <div class="field">
                                 <label for="authMode">Primary Option</label>
                                 <select id="authMode" class="input">
-                                    <option value="roomSurname" {% if selectedHotelState.configuration.primaryAuthMode == 'roomSurname' %}selected{% endif %}>Room + Surname</option>
-                                    <option value="accessCode" {% if selectedHotelState.configuration.primaryAuthMode == 'accessCode' %}selected{% endif %}>Access Code</option>
+                                    <option value="roomSurname" {% if config.primaryAuthMode == 'roomSurname' %}selected{% endif %}>Room + Surname</option>
+                                    <option value="accessCode" {% if config.primaryAuthMode == 'accessCode' %}selected{% endif %}>Access Code</option>
                                 </select>
                             </div>
                             <div class="field">
                                 <label for="deviceDefault">Default Device</label>
                                 <select id="deviceDefault" class="input">
-                                    <option value="android" {% if selectedHotelState.configuration.device.default == 'android' %}selected{% endif %}>Android</option>
-                                    <option value="ios" {% if selectedHotelState.configuration.device.default == 'ios' %}selected{% endif %}>iOS</option>
-                                    <option value="generic" {% if selectedHotelState.configuration.device.default == 'generic' %}selected{% endif %}>Generic</option>
+                                    <option value="android" {% if config.device.default == 'android' %}selected{% endif %}>Android</option>
+                                    <option value="ios" {% if config.device.default == 'ios' %}selected{% endif %}>iOS</option>
+                                    <option value="generic" {% if config.device.default == 'generic' %}selected{% endif %}>Generic</option>
                                 </select>
                             </div>
                         </div>
 
                         <div class="field">
                             <span class="field__label">Available Devices</span>
-                            <div class="checkbox-row">
-                                <label><input type="checkbox" name="deviceAvailable" value="android" {% if 'android' in selectedHotelState.configuration.device.available %}checked{% endif %}> Android</label>
-                                <label><input type="checkbox" name="deviceAvailable" value="ios" {% if 'ios' in selectedHotelState.configuration.device.available %}checked{% endif %}> iOS</label>
-                                <label><input type="checkbox" name="deviceAvailable" value="generic" {% if 'generic' in selectedHotelState.configuration.device.available %}checked{% endif %}> Generic</label>
+                            <div class="checkbox-row checkbox-row--wrap">
+                                <label class="checkbox-line"><input type="checkbox" name="deviceAvailable" value="android" {% if 'android' in config.device.available %}checked{% endif %}> Android</label>
+                                <label class="checkbox-line"><input type="checkbox" name="deviceAvailable" value="ios" {% if 'ios' in config.device.available %}checked{% endif %}> iOS</label>
+                                <label class="checkbox-line"><input type="checkbox" name="deviceAvailable" value="generic" {% if 'generic' in config.device.available %}checked{% endif %}> Generic</label>
                             </div>
-                        </div>
-
-                        <div class="field field--inline">
-                            <label><input id="upgradeEnabled" type="checkbox" {% if selectedHotelState.configuration.upgrade.enabled %}checked{% endif %}> Upgrade enabled</label>
-                        </div>
-
-                        <div class="field">
-                            <label for="upgradeUrl">Upgrade URL</label>
-                            <input id="upgradeUrl" class="input" type="text" value="{{ selectedHotelState.configuration.upgrade.url ?? '' }}">
                         </div>
 
                         <div id="hotel-status" class="notice hidden"></div>
 
                         <div class="actions">
                             <button class="button button--primary" type="submit">Save Hotel Configuration</button>
-                            <a class="button" href="{{ path('app_access', {hotel: selectedHotel.externalHotelId}) }}">Back To Access</a>
+                            {% if permissions.access %}
+                                <a class="button" href="{{ path('app_access', {hotel: selectedHotel.externalHotelId}) }}">Back To Access</a>
+                            {% endif %}
                         </div>
                     </form>
                 </section>

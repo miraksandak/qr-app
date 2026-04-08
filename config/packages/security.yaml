@@ -26,6 +26,7 @@ security:
     access_control:
         - { path: '^/login$', roles: PUBLIC_ACCESS }
         - { path: '^/logout$', roles: PUBLIC_ACCESS }
+        - { path: '^/asset/image/[A-Za-z0-9-]{36}$', roles: PUBLIC_ACCESS }
         - { path: '^/json/[A-Za-z0-9]{5}$', roles: PUBLIC_ACCESS }
         - { path: '^/print/[A-Za-z0-9]{5}$', roles: PUBLIC_ACCESS }
         - { path: '^/upgrade/[A-Za-z0-9]{5}$', roles: PUBLIC_ACCESS }

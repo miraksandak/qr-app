@@ -16,7 +16,10 @@ final class ExternalUser implements UserInterface
         private string $displayName,
         private ExternalOauthToken $oauthToken,
         private array $accessibleHotels,
-        private \DateTimeImmutable $syncedAt
+        private \DateTimeImmutable $syncedAt,
+        private array $roles = ['ROLE_EXTERNAL_USER'],
+        private bool $accessAllHotels = false,
+        private bool $internalApiUser = false
     ) {
     }
 
@@ -50,6 +53,10 @@ final class ExternalUser implements UserInterface
 
     public function hasAccessToHotel(string $externalHotelId): bool
     {
+        if ($this->accessAllHotels) {
+            return true;
+        }
+
         return $this->findAccessibleHotel($externalHotelId) !== null;
     }
 
@@ -67,20 +74,49 @@ final class ExternalUser implements UserInterface
     /**
      * @param list<ExternalHotelAccess> $accessibleHotels
      */
-    public function withRefreshedContext(ExternalOauthToken $oauthToken, array $accessibleHotels, \DateTimeImmutable $syncedAt): self
+    public function withRefreshedContext(
+        ExternalOauthToken $oauthToken,
+        array $accessibleHotels,
+        \DateTimeImmutable $syncedAt,
+        ?array $roles = null,
+        ?bool $accessAllHotels = null
+    ): self
     {
         return new self(
             $this->userIdentifier,
             $this->displayName,
             $oauthToken,
             $accessibleHotels,
-            $syncedAt
+            $syncedAt,
+            $roles ?? $this->roles,
+            $accessAllHotels ?? $this->accessAllHotels,
+            $this->internalApiUser
         );
     }
 
     public function getRoles(): array
     {
-        return ['ROLE_EXTERNAL_USER'];
+        return array_values(array_unique(array_merge(['ROLE_EXTERNAL_USER'], $this->roles)));
+    }
+
+    public function canManageAccess(): bool
+    {
+        return in_array('ROLE_ACCESS_MANAGER', $this->getRoles(), true);
+    }
+
+    public function canManageHotelSettings(): bool
+    {
+        return in_array('ROLE_HOTEL_SETTINGS_MANAGER', $this->getRoles(), true);
+    }
+
+    public function canAccessAllHotels(): bool
+    {
+        return $this->accessAllHotels;
+    }
+
+    public function isInternalApiUser(): bool
+    {
+        return $this->internalApiUser;
     }
 
     public function eraseCredentials(): void

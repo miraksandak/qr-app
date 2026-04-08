@@ -28,6 +28,9 @@ class HotelConfiguration
     #[ORM\Column(type: Types::STRING, length: 2048, nullable: true)]
     private ?string $logoUrl = null;
 
+    #[ORM\Column(type: Types::STRING, length: 36, nullable: true)]
+    private ?string $logoImageUuid = null;
+
     #[ORM\Column(type: Types::STRING, length: 2048, nullable: true)]
     private ?string $portalUrl = null;
 
@@ -36,6 +39,12 @@ class HotelConfiguration
 
     #[ORM\Column(type: Types::STRING, length: 128, nullable: true)]
     private ?string $datacenterId = null;
+
+    #[ORM\Column(type: Types::STRING, length: 128, nullable: true)]
+    private ?string $pmsProvider = null;
+
+    #[ORM\Column(type: Types::JSON)]
+    private array $pmsCredentialFields = ['roomNumber', 'surname'];
 
     #[ORM\Column(type: Types::STRING, length: 32)]
     private string $primaryAuthMode = 'roomSurname';
@@ -124,6 +133,17 @@ class HotelConfiguration
         $this->touch();
     }
 
+    public function getLogoImageUuid(): ?string
+    {
+        return $this->logoImageUuid;
+    }
+
+    public function setLogoImageUuid(?string $logoImageUuid): void
+    {
+        $this->logoImageUuid = $logoImageUuid;
+        $this->touch();
+    }
+
     public function getPortalUrl(): ?string
     {
         return $this->portalUrl;
@@ -154,6 +174,28 @@ class HotelConfiguration
     public function setDatacenterId(?string $datacenterId): void
     {
         $this->datacenterId = $datacenterId;
+        $this->touch();
+    }
+
+    public function getPmsProvider(): ?string
+    {
+        return $this->pmsProvider;
+    }
+
+    public function setPmsProvider(?string $pmsProvider): void
+    {
+        $this->pmsProvider = $pmsProvider;
+        $this->touch();
+    }
+
+    public function getPmsCredentialFields(): array
+    {
+        return $this->pmsCredentialFields;
+    }
+
+    public function setPmsCredentialFields(array $pmsCredentialFields): void
+    {
+        $this->pmsCredentialFields = array_values($pmsCredentialFields);
         $this->touch();
     }
 

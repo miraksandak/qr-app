@@ -8,6 +8,8 @@ interface ExternalConnectorClientInterface
 
     public function refreshAccessToken(string $refreshToken): ExternalOauthToken;
 
+    public function fetchAuthorizationContext(string $accessToken): ExternalAuthorizationContext;
+
     /**
      * @return list<ExternalHotelAccess>
      */

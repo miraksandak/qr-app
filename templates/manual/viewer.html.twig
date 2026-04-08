@@ -4,6 +4,12 @@
 
 {% block body %}
     <main class="sheet">
+        {% if page != 'print' %}
+            <div class="sheet-tools">
+                <a class="sheet-tool" href="{{ path('manual_print', {id: id}) }}">Print</a>
+            </div>
+        {% endif %}
+
         <div class="lang-switch" aria-label="Language selector">
             <label for="langSelect" class="lang-switch__label" data-i18n="language">Language</label>
             <select id="langSelect" class="lang-switch__select">

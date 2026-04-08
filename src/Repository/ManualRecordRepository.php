@@ -12,4 +12,16 @@ class ManualRecordRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, ManualRecord::class);
     }
+
+    /**
+     * @return list<ManualRecord>
+     */
+    public function findActiveRecords(\DateTimeImmutable $now): array
+    {
+        return $this->createQueryBuilder('record')
+            ->andWhere('record.validUntil > :now')
+            ->setParameter('now', $now)
+            ->getQuery()
+            ->getResult();
+    }
 }

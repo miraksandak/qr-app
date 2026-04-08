@@ -19,21 +19,38 @@ class MainController extends AbstractController
             throw $this->createAccessDeniedException('External user is required.');
         }
 
-        $selectedHotel = $this->resolveSelectedHotel($request, $user);
+        if (!$user->canManageAccess()) {
+            if ($user->canManageHotelSettings()) {
+                return $this->redirectToRoute('app_hotel_settings', $request->query->all());
+            }
+
+            throw $this->createAccessDeniedException('You do not have access to access documents.');
+        }
+
+        $hotelBrowser = $hotelConfigurationManager->buildAccessibleHotelBrowser(
+            $user->getAccessibleHotels(),
+            (string) $request->query->get('q', ''),
+            $request->query->has('page') ? (int) $request->query->get('page', 1) : null,
+            (string) $request->query->get('hotel', '')
+        );
+        $selectedHotel = $this->resolveSelectedHotel($hotelBrowser['selectedExternalHotelId'], $user);
 
         return $this->render('access/index.html.twig', [
             'user' => $user,
-            'accessibleHotels' => $hotelConfigurationManager->buildAccessibleHotelList($user->getAccessibleHotels()),
+            'permissions' => [
+                'access' => $user->canManageAccess(),
+                'hotelSettings' => $user->canManageHotelSettings(),
+            ],
+            'hotelBrowser' => $hotelBrowser,
             'selectedHotel' => $selectedHotel,
             'selectedHotelState' => $selectedHotel === null ? null : $hotelConfigurationManager->buildHotelSnapshot($selectedHotel),
         ]);
     }
 
-    private function resolveSelectedHotel(Request $request, ExternalUser $user): ?\App\Connector\ExternalHotelAccess
+    private function resolveSelectedHotel(?string $selectedExternalHotelId, ExternalUser $user): ?\App\Connector\ExternalHotelAccess
     {
-        $requestedExternalHotelId = trim((string) $request->query->get('hotel', ''));
-        if ($requestedExternalHotelId !== '') {
-            $selectedHotel = $user->findAccessibleHotel($requestedExternalHotelId);
+        if (is_string($selectedExternalHotelId) && trim($selectedExternalHotelId) !== '') {
+            $selectedHotel = $user->findAccessibleHotel(trim($selectedExternalHotelId));
             if ($selectedHotel !== null) {
                 return $selectedHotel;
             }

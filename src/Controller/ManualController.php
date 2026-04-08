@@ -4,9 +4,11 @@ namespace App\Controller;
 
 use App\Connector\ExternalHotelAccess;
 use App\Entity\ManualRecord;
+use App\Repository\HotelRepository;
 use App\Repository\ManualRecordRepository;
 use App\Security\ExternalUser;
 use App\Service\HotelConfigurationManager;
+use App\Service\ManualUrlGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -50,10 +52,7 @@ class ManualController extends AbstractController
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        #[Autowire('%env(BASE_VIEWER_URL)%')]
-        private string $baseViewerUrl,
-        #[Autowire('%env(BASE_UPGRADE_URL)%')]
-        private string $baseUpgradeUrl,
+        private ManualUrlGenerator $manualUrlGenerator,
         #[Autowire('%env(int:DEFAULT_TTL_DAYS)%')]
         private int $defaultTtlDays
     ) {
@@ -64,8 +63,14 @@ class ManualController extends AbstractController
     public function createManual(
         Request $request,
         ManualRecordRepository $repository,
-        HotelConfigurationManager $hotelConfigurationManager
+        HotelConfigurationManager $hotelConfigurationManager,
+        HotelRepository $hotelRepository
     ): JsonResponse {
+        $user = $this->getAuthenticatedUser();
+        if (!$user->canManageAccess()) {
+            return new JsonResponse(['error' => 'Forbidden'], Response::HTTP_FORBIDDEN);
+        }
+
         $rawContent = trim((string) $request->getContent());
         $rawContent = $rawContent === '' ? '{}' : $rawContent;
 
@@ -92,18 +97,42 @@ class ManualController extends AbstractController
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_BAD_REQUEST);
         }
 
-        $accessibleHotel = $this->findAccessibleHotel($hotelExternalId);
+        $accessibleHotel = $this->findAccessibleHotel($hotelExternalId, $hotelRepository);
         if ($accessibleHotel === null) {
             return new JsonResponse(['error' => 'Forbidden'], Response::HTTP_FORBIDDEN);
         }
 
         $hotel = $hotelConfigurationManager->ensureHotelWithConfiguration($accessibleHotel);
+        $configuration = $hotel->getConfiguration();
+        if ($configuration === null) {
+            return new JsonResponse(['error' => 'Hotel configuration is missing'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $authPayload = $hotelConfigurationManager->buildManualAuthPayload(
+                $configuration,
+                is_array($payload['options'] ?? null) ? $payload['options'] : []
+            );
+        } catch (\InvalidArgumentException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+
+        if (($authPayload['mode'] ?? null) === 'accessCode' && !$hotelConfigurationManager->isAccessCodeAllowed($configuration)) {
+            return new JsonResponse([
+                'error' => 'Access code cannot be created until the hotel configuration is complete.',
+            ], Response::HTTP_BAD_REQUEST);
+        }
 
         $mergedPayload = $this->deepMerge(
             self::DEFAULT_TEMPLATE,
             $hotelConfigurationManager->buildManualHotelPayload($hotel)
         );
         $mergedPayload = $this->deepMerge($mergedPayload, $payload);
+        $mergedPayload['options'] = $this->deepMerge(
+            is_array($mergedPayload['options'] ?? null) ? $mergedPayload['options'] : [],
+            $authPayload
+        );
+        $mergedPayload = $this->appendAuthTargetUrls($mergedPayload);
 
         try {
             $payloadJson = json_encode($mergedPayload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -123,12 +152,12 @@ class ManualController extends AbstractController
         $this->entityManager->persist($record);
         $this->entityManager->flush();
 
-        $viewerBase = $this->normalizeBaseUrl($this->baseViewerUrl);
         $response = [
             'id' => $id,
-            'viewerUrl' => $viewerBase . '/' . $id,
-            'jsonUrl' => $viewerBase . '/json/' . $id,
-            'printUrl' => $viewerBase . '/print/' . $id,
+            'viewerUrl' => $this->manualUrlGenerator->buildViewerUrl($id),
+            'jsonUrl' => $this->manualUrlGenerator->buildJsonUrl($id),
+            'printUrl' => $this->manualUrlGenerator->buildPrintUrl($id),
+            'upgradeUrl' => $this->manualUrlGenerator->buildUpgradeUrl($id),
             'validUntil' => $validUntil->format(\DateTimeInterface::ATOM),
             'hotelExternalId' => $hotelExternalId,
         ];
@@ -158,8 +187,8 @@ class ManualController extends AbstractController
         return $this->render('manual/upgrade.html.twig', [
             'id' => strtoupper($id),
             'page' => 'upgrade',
-            'baseViewerUrl' => $this->normalizeBaseUrl($this->baseViewerUrl),
-            'baseUpgradeUrl' => $this->normalizeBaseUrl($this->baseUpgradeUrl),
+            'baseViewerUrl' => $this->manualUrlGenerator->getViewerBaseUrl(),
+            'baseUpgradeUrl' => $this->manualUrlGenerator->getUpgradeBaseUrl(),
         ]);
     }
 
@@ -174,8 +203,8 @@ class ManualController extends AbstractController
         return $this->render('manual/viewer.html.twig', [
             'id' => strtoupper($id),
             'page' => 'print',
-            'baseViewerUrl' => $this->normalizeBaseUrl($this->baseViewerUrl),
-            'baseUpgradeUrl' => $this->normalizeBaseUrl($this->baseUpgradeUrl),
+            'baseViewerUrl' => $this->manualUrlGenerator->getViewerBaseUrl(),
+            'baseUpgradeUrl' => $this->manualUrlGenerator->getUpgradeBaseUrl(),
         ]);
     }
 
@@ -190,8 +219,8 @@ class ManualController extends AbstractController
         return $this->render('manual/viewer.html.twig', [
             'id' => strtoupper($id),
             'page' => 'viewer',
-            'baseViewerUrl' => $this->normalizeBaseUrl($this->baseViewerUrl),
-            'baseUpgradeUrl' => $this->normalizeBaseUrl($this->baseUpgradeUrl),
+            'baseViewerUrl' => $this->manualUrlGenerator->getViewerBaseUrl(),
+            'baseUpgradeUrl' => $this->manualUrlGenerator->getUpgradeBaseUrl(),
         ]);
     }
 
@@ -236,11 +265,6 @@ class ManualController extends AbstractController
         }
 
         return $id;
-    }
-
-    private function normalizeBaseUrl(string $url): string
-    {
-        return rtrim($url, '/');
     }
 
     private function findActiveRecord(string $id, ManualRecordRepository $repository): ?ManualRecord
@@ -338,8 +362,78 @@ class ManualController extends AbstractController
         return $user;
     }
 
-    private function findAccessibleHotel(string $externalHotelId): ?ExternalHotelAccess
+    private function findAccessibleHotel(string $externalHotelId, HotelRepository $hotelRepository): ?ExternalHotelAccess
     {
-        return $this->getAuthenticatedUser()->findAccessibleHotel($externalHotelId);
+        $user = $this->getAuthenticatedUser();
+        $hotel = $user->findAccessibleHotel($externalHotelId);
+        if ($hotel !== null) {
+            return $hotel;
+        }
+
+        if ($user->canAccessAllHotels()) {
+            $storedHotel = $hotelRepository->findOneByExternalHotelId($externalHotelId);
+            if ($storedHotel !== null) {
+                return new ExternalHotelAccess($storedHotel->getExternalHotelId(), $storedHotel->getName());
+            }
+        }
+
+        return null;
+    }
+
+    private function appendAuthTargetUrls(array $payload): array
+    {
+        $portalUrl = trim((string) ($payload['hotel']['portalUrl'] ?? ''));
+        if ($portalUrl === '') {
+            return $payload;
+        }
+
+        $portalBase = rtrim($portalUrl, '/');
+        $mode = (string) ($payload['options']['mode'] ?? 'roomSurname');
+
+        if ($mode === 'accessCode') {
+            $code = trim((string) ($payload['options']['accessCode']['code'] ?? ''));
+            if ($code === '') {
+                return $payload;
+            }
+
+            $url = $portalBase . '/access-code?code=' . rawurlencode($code);
+            $payload['options']['accessCode']['url'] = $url;
+            $payload['options']['ac']['url'] = $url;
+
+            return $payload;
+        }
+
+        $pmsValues = is_array($payload['options']['pms'] ?? null) ? $payload['options']['pms'] : [];
+        if ($pmsValues === []) {
+            return $payload;
+        }
+
+        $query = [];
+        foreach ($pmsValues as $key => $value) {
+            if (!is_string($key) || $key === 'provider') {
+                continue;
+            }
+
+            $normalizedValue = trim((string) $value);
+            if ($normalizedValue === '') {
+                continue;
+            }
+
+            $query[$key] = $normalizedValue;
+        }
+
+        if (isset($query['roomNumber']) && !isset($query['room'])) {
+            $query['room'] = $query['roomNumber'];
+        }
+
+        if ($query === []) {
+            return $payload;
+        }
+
+        $url = $portalBase . '/room-login?' . http_build_query($query);
+        $payload['options']['pms']['url'] = $url;
+        $payload['options']['roomSurname']['url'] = $url;
+
+        return $payload;
     }
 }

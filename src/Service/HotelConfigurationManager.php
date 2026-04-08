@@ -7,21 +7,28 @@ use App\Entity\Hotel;
 use App\Entity\HotelConfiguration;
 use App\Repository\HotelRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class HotelConfigurationManager
 {
+    public const DEFAULT_PAGE_SIZE = 50;
+
     private const ALLOWED_AUTH_MODES = ['roomSurname', 'accessCode'];
     private const ALLOWED_DEVICE_TYPES = ['android', 'ios', 'generic'];
+    private const ALLOWED_PMS_CREDENTIAL_FIELDS = ['roomNumber', 'surname', 'firstName', 'checkinNumber', 'password'];
     private const ALLOWED_SSID_USAGES = ['pms', 'ac', 'free'];
 
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private HotelRepository $hotelRepository
+        private HotelRepository $hotelRepository,
+        private HotelImageStorage $hotelImageStorage
     ) {
     }
 
     /**
      * @param list<ExternalHotelAccess> $accessibleHotels
+     *
+     * @return list<array<string, mixed>>
      */
     public function buildAccessibleHotelList(array $accessibleHotels): array
     {
@@ -40,13 +47,101 @@ class HotelConfigurationManager
             $result[] = [
                 'externalHotelId' => $accessibleHotel->getExternalHotelId(),
                 'name' => $hotelEntity?->getName() ?? $accessibleHotel->getName(),
+                'displayName' => $hotelEntity?->getName() ?? $accessibleHotel->getDisplayName(),
                 'externalName' => $accessibleHotel->getName(),
                 'configurationExists' => $hotelEntity?->getConfiguration() !== null,
                 'attributes' => $accessibleHotel->getAttributes(),
             ];
         }
 
+        usort($result, static function (array $left, array $right): int {
+            $leftKey = mb_strtolower((string) ($left['displayName'] ?? $left['externalHotelId'] ?? ''));
+            $rightKey = mb_strtolower((string) ($right['displayName'] ?? $right['externalHotelId'] ?? ''));
+
+            return $leftKey <=> $rightKey;
+        });
+
         return $result;
+    }
+
+    /**
+     * @param list<ExternalHotelAccess> $accessibleHotels
+     *
+     * @return array{
+     *     items: list<array<string, mixed>>,
+     *     pagination: array<string, int>,
+     *     query: string,
+     *     selectedExternalHotelId: ?string
+     * }
+     */
+    public function buildAccessibleHotelBrowser(
+        array $accessibleHotels,
+        string $query = '',
+        ?int $page = null,
+        ?string $selectedExternalHotelId = null,
+        int $pageSize = self::DEFAULT_PAGE_SIZE
+    ): array {
+        $allHotels = $this->buildAccessibleHotelList($accessibleHotels);
+        $normalizedQuery = mb_strtolower(trim($query));
+
+        if ($normalizedQuery !== '') {
+            $allHotels = array_values(array_filter($allHotels, static function (array $hotel) use ($normalizedQuery): bool {
+                $haystack = mb_strtolower(implode(' ', array_filter([
+                    (string) ($hotel['displayName'] ?? ''),
+                    (string) ($hotel['name'] ?? ''),
+                    (string) ($hotel['externalHotelId'] ?? ''),
+                    (string) ($hotel['externalName'] ?? ''),
+                ])));
+
+                return str_contains($haystack, $normalizedQuery);
+            }));
+        }
+
+        $pageSize = max(1, min(self::DEFAULT_PAGE_SIZE, $pageSize));
+        $total = count($allHotels);
+        $pageCount = max(1, (int) ceil($total / $pageSize));
+
+        $selectedIndex = null;
+        if (is_string($selectedExternalHotelId) && $selectedExternalHotelId !== '') {
+            foreach ($allHotels as $index => $hotel) {
+                if (($hotel['externalHotelId'] ?? null) === $selectedExternalHotelId) {
+                    $selectedIndex = $index;
+                    break;
+                }
+            }
+        }
+
+        if ($page === null && $selectedIndex !== null) {
+            $page = (int) floor($selectedIndex / $pageSize) + 1;
+        }
+
+        $page ??= 1;
+        $page = max(1, min($pageCount, $page));
+        $offset = ($page - 1) * $pageSize;
+        $items = array_slice($allHotels, $offset, $pageSize);
+
+        $resolvedSelectedExternalHotelId = null;
+        $selectedIsOnCurrentPage = $selectedIndex !== null
+            && $selectedIndex >= $offset
+            && $selectedIndex < ($offset + count($items));
+
+        if ($selectedIsOnCurrentPage) {
+            $resolvedSelectedExternalHotelId = $selectedExternalHotelId;
+        } elseif ($items !== []) {
+            $resolvedSelectedExternalHotelId = $items[0]['externalHotelId'] ?? null;
+        }
+
+        return [
+            'items' => $items,
+            'pagination' => [
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'pageCount' => $pageCount,
+                'total' => $total,
+            ],
+            'query' => trim($query),
+            'selectedExternalHotelId' => $resolvedSelectedExternalHotelId,
+        ];
     }
 
     public function buildHotelSnapshot(ExternalHotelAccess $accessibleHotel): array
@@ -56,6 +151,8 @@ class HotelConfigurationManager
             return $this->serializeHotel($hotel, true);
         }
 
+        $preview = $this->createDefaultConfigurationPreview();
+
         return [
             'hotel' => [
                 'id' => $hotel?->getId(),
@@ -64,9 +161,12 @@ class HotelConfigurationManager
                 'createdAt' => $hotel?->getCreatedAt()->format(\DateTimeInterface::ATOM),
                 'updatedAt' => $hotel?->getUpdatedAt()->format(\DateTimeInterface::ATOM),
             ],
-            'configuration' => $this->serializeConfiguration($this->createDefaultConfigurationPreview()),
+            'configuration' => $this->serializeConfiguration($preview),
             'meta' => [
                 'persisted' => false,
+                'configurationComplete' => $this->isConfigurationComplete($preview),
+                'accessCodeAllowed' => $this->isAccessCodeAllowed($preview),
+                'missingConfigurationFields' => $this->findMissingConfigurationFields($preview),
             ],
         ];
     }
@@ -95,8 +195,11 @@ class HotelConfigurationManager
         return $hotel;
     }
 
-    public function updateHotelConfiguration(ExternalHotelAccess $accessibleHotel, array $payload): Hotel
-    {
+    public function updateHotelConfiguration(
+        ExternalHotelAccess $accessibleHotel,
+        array $payload,
+        ?UploadedFile $logoUpload = null
+    ): Hotel {
         $hotel = $this->ensureHotelWithConfiguration($accessibleHotel);
 
         if (array_key_exists('name', $payload)) {
@@ -112,7 +215,7 @@ class HotelConfigurationManager
                 throw new \InvalidArgumentException('configuration must be an object');
             }
 
-            $this->applyConfigurationPatch($hotel->getConfiguration(), $payload['configuration']);
+            $this->applyConfigurationPatch($hotel, $payload['configuration'], $logoUpload);
         }
 
         return $hotel;
@@ -120,6 +223,8 @@ class HotelConfigurationManager
 
     public function serializeHotel(Hotel $hotel, bool $persisted = true): array
     {
+        $configuration = $hotel->getConfiguration();
+
         return [
             'hotel' => [
                 'id' => $hotel->getId(),
@@ -128,9 +233,12 @@ class HotelConfigurationManager
                 'createdAt' => $hotel->getCreatedAt()->format(\DateTimeInterface::ATOM),
                 'updatedAt' => $hotel->getUpdatedAt()->format(\DateTimeInterface::ATOM),
             ],
-            'configuration' => $this->serializeConfiguration($hotel->getConfiguration()),
+            'configuration' => $this->serializeConfiguration($configuration),
             'meta' => [
                 'persisted' => $persisted,
+                'configurationComplete' => $this->isConfigurationComplete($configuration),
+                'accessCodeAllowed' => $this->isAccessCodeAllowed($configuration),
+                'missingConfigurationFields' => $this->findMissingConfigurationFields($configuration),
             ],
         ];
     }
@@ -147,7 +255,11 @@ class HotelConfigurationManager
                 'name' => $hotel->getName() ?? 'Hotel Guest',
                 'supportText' => $configuration->getSupportText(),
                 'footerText' => $configuration->getFooterText(),
-                'logoUrl' => $configuration->getLogoUrl(),
+                'logoUrl' => $this->hotelImageStorage->resolveLogoUrl(
+                    $configuration->getLogoImageUuid(),
+                    $configuration->getLogoUrl()
+                ),
+                'logoImageUuid' => $configuration->getLogoImageUuid(),
                 'portalUrl' => $configuration->getPortalUrl(),
                 'ssids' => $configuration->getSsids(),
                 'upgrade' => [
@@ -161,8 +273,139 @@ class HotelConfigurationManager
             ],
             'options' => [
                 'mode' => $configuration->getPrimaryAuthMode(),
+                'pms' => [
+                    'provider' => $configuration->getPmsProvider(),
+                    'fields' => $configuration->getPmsCredentialFields(),
+                ],
             ],
         ];
+    }
+
+    public function buildManualAuthPayload(HotelConfiguration $configuration, array $options): array
+    {
+        $mode = $this->normalizePrimaryAuthMode($options['mode'] ?? $configuration->getPrimaryAuthMode());
+        $freeAccess = $options['freeAccess'] ?? false;
+        $payload = [
+            'mode' => $mode,
+            'freeAccess' => [
+                'enabled' => $this->normalizeBoolean(
+                    is_array($freeAccess) ? ($freeAccess['enabled'] ?? false) : $freeAccess
+                ),
+            ],
+        ];
+
+        if ($mode === 'accessCode') {
+            $accessCode = $options['accessCode'] ?? [];
+            $legacyAccessCode = $options['ac'] ?? [];
+            $code = $this->normalizeNullableString(
+                (is_array($accessCode) ? ($accessCode['code'] ?? null) : $accessCode)
+                ?? (is_array($legacyAccessCode) ? ($legacyAccessCode['code'] ?? null) : $legacyAccessCode)
+                ?? $options['accessCode']
+                ?? null
+            );
+            if ($code === null) {
+                throw new \InvalidArgumentException('Access code is required.');
+            }
+
+            $payload['accessCode'] = [
+                'code' => $code,
+            ];
+            $payload['ac'] = $payload['accessCode'];
+            $payload['fields'] = [
+                ['key' => 'accessCode', 'value' => $code],
+            ];
+
+            return $payload;
+        }
+
+        $rawPms = $options['pms'] ?? $options['roomSurname'] ?? [];
+        if (!is_array($rawPms)) {
+            throw new \InvalidArgumentException('PMS fields must be an object.');
+        }
+
+        $fields = [];
+        $pmsValues = [];
+        foreach ($configuration->getPmsCredentialFields() as $fieldName) {
+            $value = $this->normalizeNullableString(
+                $rawPms[$fieldName]
+                ?? ($fieldName === 'roomNumber' ? ($rawPms['room'] ?? null) : null)
+                ?? null
+            );
+
+            if ($value === null) {
+                throw new \InvalidArgumentException(sprintf('PMS field "%s" is required.', $fieldName));
+            }
+
+            $pmsValues[$fieldName] = $value;
+            $fields[] = [
+                'key' => $fieldName,
+                'value' => $value,
+            ];
+        }
+
+        $payload['pms'] = $pmsValues + ['provider' => $configuration->getPmsProvider()];
+        $payload['roomSurname'] = [
+            'room' => $pmsValues['roomNumber'] ?? '',
+            'roomNumber' => $pmsValues['roomNumber'] ?? '',
+            'surname' => $pmsValues['surname'] ?? '',
+        ];
+        $payload['fields'] = $fields;
+
+        return $payload;
+    }
+
+    public function isConfigurationComplete(HotelConfiguration|HotelConfigurationPreview|null $configuration): bool
+    {
+        return $this->findMissingConfigurationFields($configuration) === [];
+    }
+
+    public function isAccessCodeAllowed(HotelConfiguration|HotelConfigurationPreview|null $configuration): bool
+    {
+        if (!$this->isConfigurationComplete($configuration)) {
+            return false;
+        }
+
+        if ($configuration === null) {
+            return false;
+        }
+
+        foreach ($configuration->getSsids() as $ssid) {
+            if (($ssid['usage'] ?? null) === 'ac') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function findMissingConfigurationFields(HotelConfiguration|HotelConfigurationPreview|null $configuration): array
+    {
+        if ($configuration === null) {
+            return ['portalUrl', 'pmsProvider', 'ssids', 'pmsCredentialFields'];
+        }
+
+        $missing = [];
+
+        if ($this->normalizeNullableString($configuration->getPortalUrl()) === null) {
+            $missing[] = 'portalUrl';
+        }
+
+        if ($this->normalizeNullableString($configuration->getPmsProvider()) === null) {
+            $missing[] = 'pmsProvider';
+        }
+
+        if (count($configuration->getPmsCredentialFields()) < 2) {
+            $missing[] = 'pmsCredentialFields';
+        }
+
+        if ($configuration->getSsids() === []) {
+            $missing[] = 'ssids';
+        }
+
+        return $missing;
     }
 
     private function createDefaultConfigurationPreview(): HotelConfigurationPreview
@@ -174,6 +417,9 @@ class HotelConfigurationManager
             null,
             null,
             null,
+            null,
+            null,
+            ['roomNumber', 'surname'],
             'roomSurname',
             'generic',
             ['android', 'ios', 'generic'],
@@ -187,10 +433,13 @@ class HotelConfigurationManager
     {
         $configuration->setSupportText('Need help? Contact reception.');
         $configuration->setLogoUrl('/media/mik-logo.png');
+        $configuration->setLogoImageUuid(null);
         $configuration->setFooterText(null);
         $configuration->setPortalUrl(null);
         $configuration->setProxyApiBaseUrl(null);
         $configuration->setDatacenterId(null);
+        $configuration->setPmsProvider(null);
+        $configuration->setPmsCredentialFields(['roomNumber', 'surname']);
         $configuration->setPrimaryAuthMode('roomSurname');
         $configuration->setDefaultDevice('generic');
         $configuration->setAvailableDevices(['android', 'ios', 'generic']);
@@ -209,10 +458,17 @@ class HotelConfigurationManager
             'id' => $configuration->getId(),
             'supportText' => $configuration->getSupportText(),
             'footerText' => $configuration->getFooterText(),
-            'logoUrl' => $configuration->getLogoUrl(),
+            'logoUrl' => $this->hotelImageStorage->resolveLogoUrl(
+                $configuration->getLogoImageUuid(),
+                $configuration->getLogoUrl()
+            ),
+            'logoSourceUrl' => $configuration->getLogoUrl(),
+            'logoImageUuid' => $configuration->getLogoImageUuid(),
             'portalUrl' => $configuration->getPortalUrl(),
             'proxyApiBaseUrl' => $configuration->getProxyApiBaseUrl(),
             'datacenterId' => $configuration->getDatacenterId(),
+            'pmsProvider' => $configuration->getPmsProvider(),
+            'pmsCredentialFields' => $configuration->getPmsCredentialFields(),
             'primaryAuthMode' => $configuration->getPrimaryAuthMode(),
             'device' => [
                 'default' => $configuration->getDefaultDevice(),
@@ -228,8 +484,16 @@ class HotelConfigurationManager
         ];
     }
 
-    private function applyConfigurationPatch(HotelConfiguration $configuration, array $payload): void
-    {
+    private function applyConfigurationPatch(
+        Hotel $hotel,
+        array $payload,
+        ?UploadedFile $logoUpload = null
+    ): void {
+        $configuration = $hotel->getConfiguration();
+        if ($configuration === null) {
+            throw new \InvalidArgumentException('Hotel configuration is missing.');
+        }
+
         if (array_key_exists('supportText', $payload)) {
             $configuration->setSupportText($this->normalizeNullableString($payload['supportText']));
         }
@@ -238,8 +502,20 @@ class HotelConfigurationManager
             $configuration->setFooterText($this->normalizeNullableString($payload['footerText']));
         }
 
-        if (array_key_exists('logoUrl', $payload)) {
-            $configuration->setLogoUrl($this->normalizeNullableString($payload['logoUrl']));
+        $removeLogo = $this->normalizeBoolean($payload['removeLogo'] ?? false);
+        if ($logoUpload !== null) {
+            $asset = $this->hotelImageStorage->storeUploadedLogo($hotel, $logoUpload);
+            $configuration->setLogoImageUuid($asset->getUuid());
+            $configuration->setLogoUrl(null);
+        } elseif ($removeLogo) {
+            $configuration->setLogoImageUuid(null);
+            $configuration->setLogoUrl(null);
+        } elseif (array_key_exists('logoUrl', $payload)) {
+            $logoUrl = $this->normalizeNullableString($payload['logoUrl']);
+            $configuration->setLogoUrl($logoUrl);
+            if ($logoUrl !== null) {
+                $configuration->setLogoImageUuid(null);
+            }
         }
 
         if (array_key_exists('portalUrl', $payload)) {
@@ -252,6 +528,14 @@ class HotelConfigurationManager
 
         if (array_key_exists('datacenterId', $payload)) {
             $configuration->setDatacenterId($this->normalizeNullableString($payload['datacenterId']));
+        }
+
+        if (array_key_exists('pmsProvider', $payload)) {
+            $configuration->setPmsProvider($this->normalizeNullableString($payload['pmsProvider']));
+        }
+
+        if (array_key_exists('pmsCredentialFields', $payload)) {
+            $configuration->setPmsCredentialFields($this->normalizePmsCredentialFields($payload['pmsCredentialFields']));
         }
 
         if (array_key_exists('primaryAuthMode', $payload)) {
@@ -305,11 +589,7 @@ class HotelConfigurationManager
     private function applyUpgradePatch(HotelConfiguration $configuration, array $payload): void
     {
         if (array_key_exists('enabled', $payload)) {
-            if (!is_bool($payload['enabled'])) {
-                throw new \InvalidArgumentException('upgrade.enabled must be a boolean');
-            }
-
-            $configuration->setUpgradeEnabled($payload['enabled']);
+            $configuration->setUpgradeEnabled($this->normalizeBoolean($payload['enabled']));
         }
 
         if (array_key_exists('url', $payload)) {
@@ -335,6 +615,9 @@ class HotelConfigurationManager
         return $value;
     }
 
+    /**
+     * @return list<string>
+     */
     private function normalizeAvailableDevices(mixed $value): array
     {
         if (!is_array($value)) {
@@ -354,6 +637,9 @@ class HotelConfigurationManager
         return $devices;
     }
 
+    /**
+     * @return list<array{name: string, usage: string}>
+     */
     private function normalizeSsids(mixed $value): array
     {
         if (!is_array($value)) {
@@ -361,6 +647,7 @@ class HotelConfigurationManager
         }
 
         $ssids = [];
+        $seen = [];
         foreach ($value as $index => $ssid) {
             if (!is_array($ssid)) {
                 throw new \InvalidArgumentException(sprintf('ssids[%d] must be an object', $index));
@@ -371,18 +658,56 @@ class HotelConfigurationManager
                 throw new \InvalidArgumentException(sprintf('ssids[%d].name is required', $index));
             }
 
-            $usage = $ssid['usage'] ?? null;
-            if (!is_string($usage) || !in_array($usage, self::ALLOWED_SSID_USAGES, true)) {
-                throw new \InvalidArgumentException(sprintf('ssids[%d].usage must be one of: pms, ac, free', $index));
+            $usages = $ssid['usages'] ?? [$ssid['usage'] ?? null];
+            if (!is_array($usages)) {
+                throw new \InvalidArgumentException(sprintf('ssids[%d].usages must be an array', $index));
             }
 
-            $ssids[] = [
-                'name' => $name,
-                'usage' => $usage,
-            ];
+            foreach ($usages as $usage) {
+                if (!is_string($usage) || !in_array($usage, self::ALLOWED_SSID_USAGES, true)) {
+                    throw new \InvalidArgumentException(sprintf('ssids[%d].usage must be one of: pms, ac, free', $index));
+                }
+
+                $signature = mb_strtolower($name) . ':' . $usage;
+                if (isset($seen[$signature])) {
+                    continue;
+                }
+
+                $seen[$signature] = true;
+                $ssids[] = [
+                    'name' => $name,
+                    'usage' => $usage,
+                ];
+            }
         }
 
         return $ssids;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizePmsCredentialFields(mixed $value): array
+    {
+        if (!is_array($value)) {
+            throw new \InvalidArgumentException('pmsCredentialFields must be an array');
+        }
+
+        $fields = ['roomNumber'];
+        foreach ($value as $fieldName) {
+            if (!is_string($fieldName) || !in_array($fieldName, self::ALLOWED_PMS_CREDENTIAL_FIELDS, true)) {
+                throw new \InvalidArgumentException('Unsupported PMS field selection.');
+            }
+
+            $fields[] = $fieldName;
+        }
+
+        $fields = array_values(array_unique($fields));
+        if (count($fields) < 2) {
+            throw new \InvalidArgumentException('At least roomNumber and one additional PMS field are required.');
+        }
+
+        return $fields;
     }
 
     private function normalizeNullableString(mixed $value): ?string
@@ -398,5 +723,30 @@ class HotelConfigurationManager
         $normalized = trim($value);
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    private function normalizeBoolean(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'no', 'off', ''], true)) {
+                return false;
+            }
+        }
+
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        return false;
     }
 }

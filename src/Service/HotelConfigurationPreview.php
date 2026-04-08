@@ -8,9 +8,12 @@ final class HotelConfigurationPreview
         private ?string $supportText,
         private ?string $footerText,
         private ?string $logoUrl,
+        private ?string $logoImageUuid,
         private ?string $portalUrl,
         private ?string $proxyApiBaseUrl,
         private ?string $datacenterId,
+        private ?string $pmsProvider,
+        private array $pmsCredentialFields,
         private string $primaryAuthMode,
         private string $defaultDevice,
         private array $availableDevices,
@@ -40,6 +43,11 @@ final class HotelConfigurationPreview
         return $this->logoUrl;
     }
 
+    public function getLogoImageUuid(): ?string
+    {
+        return $this->logoImageUuid;
+    }
+
     public function getPortalUrl(): ?string
     {
         return $this->portalUrl;
@@ -53,6 +61,16 @@ final class HotelConfigurationPreview
     public function getDatacenterId(): ?string
     {
         return $this->datacenterId;
+    }
+
+    public function getPmsProvider(): ?string
+    {
+        return $this->pmsProvider;
+    }
+
+    public function getPmsCredentialFields(): array
+    {
+        return $this->pmsCredentialFields;
     }
 
     public function getPrimaryAuthMode(): string
