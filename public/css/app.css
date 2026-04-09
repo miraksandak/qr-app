@@ -339,6 +339,36 @@ a {
     background: #ffffff;
 }
 
+.panel--access-editor,
+.panel--hotel-editor {
+    position: relative;
+    overflow: hidden;
+}
+
+.panel--access-editor::before,
+.panel--hotel-editor::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+}
+
+.panel--access-editor {
+    border-color: rgba(11, 111, 68, 0.18);
+}
+
+.panel--access-editor::before {
+    background: linear-gradient(90deg, rgba(11, 111, 68, 0.95) 0%, rgba(73, 170, 125, 0.55) 100%);
+}
+
+.panel--hotel-editor {
+    border-color: rgba(139, 109, 44, 0.22);
+}
+
+.panel--hotel-editor::before {
+    background: linear-gradient(90deg, rgba(139, 109, 44, 0.92) 0%, rgba(218, 185, 106, 0.55) 100%);
+}
+
 .panel--selector {
     display: grid;
     gap: 18px;
@@ -461,12 +491,39 @@ a {
     background: #fafcf9;
     display: grid;
     gap: 14px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.option-card-stack {
+    display: grid;
+    gap: 18px;
 }
 
 .option-card__head {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
+}
+
+.option-card__copy {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.option-card__meta {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-align: right;
+}
+
+.option-card--primary {
+    border-color: rgba(11, 111, 68, 0.24);
+    background: #f7fcf8;
+    box-shadow: 0 0 0 4px rgba(11, 111, 68, 0.06);
 }
 
 .advanced-block {
@@ -769,6 +826,15 @@ code {
     margin-bottom: 18px;
 }
 
+.panel-placeholder {
+    display: grid;
+    gap: 16px;
+    padding: 22px;
+    border-radius: 22px;
+    border: 1px dashed rgba(11, 111, 68, 0.18);
+    background: #f8fbf8;
+}
+
 .grid--search {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
@@ -954,9 +1020,24 @@ code {
     color: var(--muted);
 }
 
+.ssid-row__hint {
+    width: 100%;
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
 .ssid-row__actions {
     display: flex;
     justify-content: flex-end;
+}
+
+.ssid-row--exhausted {
+    border-style: dashed;
+}
+
+.ssid-row [data-ssid-usage]:disabled {
+    cursor: not-allowed;
 }
 
 .button--ghost {
@@ -1026,8 +1107,14 @@ code {
     }
 
     .upgrade-panel__header,
-    .upgrade-panel__toggleline {
+    .upgrade-panel__toggleline,
+    .option-card__head,
+    .option-card__copy {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .option-card__meta {
+        text-align: left;
     }
 }

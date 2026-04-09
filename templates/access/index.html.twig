@@ -154,7 +154,7 @@
             {% elseif selectedHotel %}
                 <div class="content-grid content-grid--aside">
                     <div class="content-stack">
-                        <section class="panel">
+                        <section class="panel panel--access-editor">
                             <div class="panel-head">
                                 <div>
                                     <h3>Create Document</h3>
@@ -178,104 +178,125 @@
                                 </div>
                             {% endif %}
 
-                            <form
-                                id="access-form"
-                                class="form"
-                                data-create-url="{{ path('app_api_manual_create') }}"
-                                data-selected-hotel-id="{{ selectedHotel.externalHotelId }}"
-                                data-access-code-allowed="{{ selectedHotelState.meta.accessCodeAllowed ? '1' : '0' }}"
-                            >
-                                <div class="grid grid--two">
-                                    <div class="field">
-                                        <label for="validUntil">Valid Until</label>
-                                        <input id="validUntil" class="input" type="text" placeholder="2026-03-01T12:00:00+00:00">
-                                    </div>
-                                    <div class="field">
-                                        <label for="authMode">Primary Option</label>
-                                        <select id="authMode" class="input">
-                                            <option value="roomSurname" {% if config.primaryAuthMode == 'roomSurname' or not selectedHotelState.meta.accessCodeAllowed %}selected{% endif %}>Room + PMS data</option>
-                                            <option value="accessCode" {% if config.primaryAuthMode == 'accessCode' and selectedHotelState.meta.accessCodeAllowed %}selected{% endif %} {% if not selectedHotelState.meta.accessCodeAllowed %}disabled{% endif %}>Access Code</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div class="field field--inline">
-                                    <label><input id="freeEnabled" type="checkbox"> Enable free access</label>
-                                </div>
-                                <p class="field-help">Fill one or both authentication options. The selected primary option is shown as Option 1 in the manual.</p>
-
-                                <section id="roomSurnameFields" class="option-card">
-                                    <div class="option-card__head">
-                                        <span class="pill">Option</span>
-                                        <h4>Room + PMS Data</h4>
-                                    </div>
+                            {% if selectedHotelState.meta.persisted %}
+                                <form
+                                    id="access-form"
+                                    class="form"
+                                    data-create-url="{{ path('app_api_manual_create') }}"
+                                    data-selected-hotel-id="{{ selectedHotel.externalHotelId }}"
+                                    data-access-code-allowed="{{ selectedHotelState.meta.accessCodeAllowed ? '1' : '0' }}"
+                                >
                                     <div class="grid grid--two">
-                                        {% for fieldName in config.pmsCredentialFields %}
-                                            <div class="field">
-                                                <label for="pmsField_{{ fieldName }}">{{ pmsFieldLabels[fieldName] ?? fieldName }}</label>
-                                                <input
-                                                    id="pmsField_{{ fieldName }}"
-                                                    class="input"
-                                                    type="{{ fieldName == 'password' ? 'password' : 'text' }}"
-                                                    data-pms-field="{{ fieldName }}"
-                                                    value="{{ pmsFieldDefaults[fieldName] ?? '' }}"
-                                                >
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                    <p class="field-help">Configured PMS: {{ config.pmsProvider ?: 'not selected yet' }}</p>
-                                </section>
-
-                                <section id="accessCodeFields" class="option-card {% if not selectedHotelState.meta.accessCodeAllowed %}hidden{% endif %}">
-                                    <div class="option-card__head">
-                                        <span class="pill">Option</span>
-                                        <h4>Access Code</h4>
-                                    </div>
-                                    <div class="grid grid--one">
                                         <div class="field">
-                                            <label for="accessCode">Access Code</label>
-                                            <input id="accessCode" class="input" type="text" value="ABCD-1234">
+                                            <label for="validUntil">Valid Until</label>
+                                            <input id="validUntil" class="input" type="text" placeholder="2026-03-01T12:00:00+00:00">
+                                        </div>
+                                        <div class="field">
+                                            <label for="authMode">Primary Option</label>
+                                            <select id="authMode" class="input">
+                                                <option value="roomSurname" {% if config.primaryAuthMode == 'roomSurname' or not selectedHotelState.meta.accessCodeAllowed %}selected{% endif %}>Room + PMS data</option>
+                                                <option value="accessCode" {% if config.primaryAuthMode == 'accessCode' and selectedHotelState.meta.accessCodeAllowed %}selected{% endif %} {% if not selectedHotelState.meta.accessCodeAllowed %}disabled{% endif %}>Access Code</option>
+                                            </select>
                                         </div>
                                     </div>
-                                </section>
 
-                                <div id="form-error" class="notice notice--error hidden"></div>
+                                    <div class="field field--inline">
+                                        <label><input id="freeEnabled" type="checkbox"> Enable free access</label>
+                                    </div>
+                                    <p class="field-help">Fill one or both authentication options. The selected primary option is shown as Option 1 in the manual.</p>
 
-                                <div class="actions">
-                                    <button class="button button--primary" type="submit">Create Access Document</button>
-                                    {% if permissions.hotelSettings %}
-                                        <a class="button" href="{{ path('app_hotel_settings', {hotel: selectedHotel.externalHotelId}) }}">Open Hotel Configuration</a>
-                                    {% endif %}
+                                    <div id="authOptions" class="option-card-stack">
+                                        <section id="roomSurnameFields" class="option-card option-card--primary" data-option-mode="roomSurname">
+                                            <div class="option-card__head">
+                                                <div class="option-card__copy">
+                                                    <span class="pill" data-option-badge>Option 1</span>
+                                                    <h4>Room + PMS Data</h4>
+                                                </div>
+                                                <span class="option-card__meta" data-option-meta>Primary option</span>
+                                            </div>
+                                            <div class="grid grid--two">
+                                                {% for fieldName in config.pmsCredentialFields %}
+                                                    <div class="field">
+                                                        <label for="pmsField_{{ fieldName }}">{{ pmsFieldLabels[fieldName] ?? fieldName }}</label>
+                                                        <input
+                                                            id="pmsField_{{ fieldName }}"
+                                                            class="input"
+                                                            type="{{ fieldName == 'password' ? 'password' : 'text' }}"
+                                                            data-pms-field="{{ fieldName }}"
+                                                            value="{{ pmsFieldDefaults[fieldName] ?? '' }}"
+                                                        >
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                            <p class="field-help">Configured PMS: {{ config.pmsProvider ?: 'not selected yet' }}</p>
+                                        </section>
+
+                                        <section id="accessCodeFields" class="option-card {% if not selectedHotelState.meta.accessCodeAllowed %}hidden{% endif %}" data-option-mode="accessCode">
+                                            <div class="option-card__head">
+                                                <div class="option-card__copy">
+                                                    <span class="pill" data-option-badge>Option 2</span>
+                                                    <h4>Access Code</h4>
+                                                </div>
+                                                <span class="option-card__meta" data-option-meta>Secondary option</span>
+                                            </div>
+                                            <div class="grid grid--one">
+                                                <div class="field">
+                                                    <label for="accessCode">Access Code</label>
+                                                    <input id="accessCode" class="input" type="text" value="ABCD-1234">
+                                                </div>
+                                            </div>
+                                        </section>
+                                    </div>
+
+                                    <div id="form-error" class="notice notice--error hidden"></div>
+
+                                    <div class="actions">
+                                        <button class="button button--primary" type="submit">Create Access Document</button>
+                                        {% if permissions.hotelSettings %}
+                                            <a class="button" href="{{ path('app_hotel_settings', {hotel: selectedHotel.externalHotelId}) }}">Open Hotel Configuration</a>
+                                        {% endif %}
+                                    </div>
+                                </form>
+                            {% else %}
+                                <div class="panel-placeholder">
+                                    <p class="panel-copy">Save hotel configuration first. Access documents are hidden until this hotel has its own configuration.</p>
+                                    <div class="actions">
+                                        {% if permissions.hotelSettings %}
+                                            <a class="button button--primary" href="{{ path('app_hotel_settings', {hotel: selectedHotel.externalHotelId}) }}">Open Hotel Configuration</a>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                            </form>
+                            {% endif %}
                         </section>
 
-                        <section id="result-panel" class="panel hidden">
-                            <div class="panel-head">
-                                <div>
-                                    <h3>Document Links</h3>
+                        {% if selectedHotelState.meta.persisted %}
+                            <section id="result-panel" class="panel hidden">
+                                <div class="panel-head">
+                                    <div>
+                                        <h3>Document Links</h3>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="result-grid">
-                                <a id="result-viewer" class="result-card" href="#" target="_blank" rel="noreferrer">
-                                    <span>Viewer</span>
-                                    <strong></strong>
-                                </a>
-                                <a id="result-json" class="result-card" href="#" target="_blank" rel="noreferrer">
-                                    <span>JSON</span>
-                                    <strong></strong>
-                                </a>
-                                <a id="result-print" class="result-card" href="#" target="_blank" rel="noreferrer">
-                                    <span>Print</span>
-                                    <strong></strong>
-                                </a>
-                                <a id="result-upgrade" class="result-card" href="#" target="_blank" rel="noreferrer">
-                                    <span>Upgrade</span>
-                                    <strong></strong>
-                                </a>
-                            </div>
-                        </section>
+                                <div class="result-grid">
+                                    <a id="result-viewer" class="result-card" href="#" target="_blank" rel="noreferrer">
+                                        <span>Viewer</span>
+                                        <strong></strong>
+                                    </a>
+                                    <a id="result-json" class="result-card" href="#" target="_blank" rel="noreferrer">
+                                        <span>JSON</span>
+                                        <strong></strong>
+                                    </a>
+                                    <a id="result-print" class="result-card" href="#" target="_blank" rel="noreferrer">
+                                        <span>Print</span>
+                                        <strong></strong>
+                                    </a>
+                                    <a id="result-upgrade" class="result-card" href="#" target="_blank" rel="noreferrer">
+                                        <span>Upgrade</span>
+                                        <strong></strong>
+                                    </a>
+                                </div>
+                            </section>
+                        {% endif %}
                     </div>
 
                     <aside class="content-stack content-stack--side">

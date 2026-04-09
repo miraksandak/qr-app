@@ -761,7 +761,13 @@ class HotelConfigurationManager
         }
 
         $ssids = [];
-        $seen = [];
+        $usageLabels = [
+            'pms' => 'PMS',
+            'ac' => 'Access Code',
+            'free' => 'Free',
+        ];
+        $seenNames = [];
+        $usedUsages = [];
         foreach ($value as $index => $ssid) {
             if (!is_array($ssid)) {
                 throw new \InvalidArgumentException(sprintf('ssids[%d] must be an object', $index));
@@ -777,22 +783,43 @@ class HotelConfigurationManager
                 throw new \InvalidArgumentException(sprintf('ssids[%d].usages must be an array', $index));
             }
 
+            $normalizedUsages = [];
             foreach ($usages as $usage) {
                 if (!is_string($usage) || !in_array($usage, self::ALLOWED_SSID_USAGES, true)) {
                     throw new \InvalidArgumentException(sprintf('ssids[%d].usage must be one of: pms, ac, free', $index));
                 }
 
-                $signature = mb_strtolower($name) . ':' . $usage;
-                if (isset($seen[$signature])) {
-                    continue;
-                }
-
-                $seen[$signature] = true;
-                $ssids[] = [
-                    'name' => $name,
-                    'usage' => $usage,
-                ];
+                $normalizedUsages[] = $usage;
             }
+
+            $normalizedUsages = array_values(array_unique($normalizedUsages));
+            if ($normalizedUsages === []) {
+                continue;
+            }
+
+            if (count($normalizedUsages) > 1) {
+                throw new \InvalidArgumentException(sprintf('SSID "%s" can only be assigned to one usage.', $name));
+            }
+
+            $normalizedName = mb_strtolower($name);
+            if (isset($seenNames[$normalizedName])) {
+                throw new \InvalidArgumentException(sprintf('SSID "%s" can only be listed once.', $name));
+            }
+
+            $usage = $normalizedUsages[0];
+            if (isset($usedUsages[$usage])) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Usage "%s" can only be assigned to one SSID.',
+                    $usageLabels[$usage] ?? $usage
+                ));
+            }
+
+            $seenNames[$normalizedName] = true;
+            $usedUsages[$usage] = $normalizedName;
+            $ssids[] = [
+                'name' => $name,
+                'usage' => $usage,
+            ];
         }
 
         return $ssids;

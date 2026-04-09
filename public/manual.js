@@ -181,7 +181,19 @@
         },
     };
 
-    const htmlKeys = new Set(['tapConnect', 'tapConnectContinue']);
+    const getDictionary = (lang) => translations[lang] || translations.en;
+
+    const translate = (dictionary, key) => {
+        if (!key) {
+            return '';
+        }
+
+        if (dictionary && dictionary[key] !== undefined) {
+            return dictionary[key];
+        }
+
+        return translations.en[key] !== undefined ? translations.en[key] : key;
+    };
 
     const showError = () => {
         const errorBlock = document.getElementById('load-error');
@@ -332,26 +344,29 @@
     };
 
     const applyTranslations = (lang) => {
-        const dictionary = translations[lang] || translations.en;
+        const dictionary = getDictionary(lang);
         document.querySelectorAll('[data-i18n]').forEach((node) => {
             const key = node.dataset.i18n;
-            if (!key || dictionary[key] === undefined) {
+            if (!key) {
                 return;
             }
-            if (htmlKeys.has(key)) {
-                node.innerHTML = dictionary[key];
-            } else {
-                node.textContent = dictionary[key];
+            node.textContent = translate(dictionary, key);
+        });
+        document.querySelectorAll('[data-i18n-html]').forEach((node) => {
+            const key = node.dataset.i18nHtml;
+            if (!key) {
+                return;
             }
+            node.innerHTML = translate(dictionary, key);
         });
         return dictionary;
     };
 
     const resolveAuthLabel = (dictionary, mode) => {
         if (normalizeUsage(mode) === 'ac') {
-            return dictionary.authAccess || translations.en.authAccess;
+            return translate(dictionary, 'authAccess');
         }
-        return dictionary.authRoom || translations.en.authRoom;
+        return translate(dictionary, 'authRoom');
     };
 
     const formatStep = (template, context) => {
@@ -379,7 +394,9 @@
         const steps = resolveInstructionSteps(lang, mode, device, context);
         if (!steps.length) {
             const li = document.createElement('li');
-            li.textContent = lang === 'cs' ? 'Žádné kroky nejsou k dispozici.' : 'No steps available for this device.';
+            li.textContent = lang === 'cs'
+                ? 'Žádné kroky nejsou k dispozici.'
+                : 'No steps available for this device.';
             list.appendChild(li);
             return;
         }
@@ -607,7 +624,7 @@
         const container = document.createElement('div');
         container.className = 'dataGrid';
         if (!fields.length) {
-            fields = [{ key: dictionary.accessCodeLabel || 'Detail', value: '—' }];
+            fields = [{ key: translate(dictionary, 'accessCodeLabel') || 'Detail', value: '—' }];
         }
 
         fields.forEach((field) => {
@@ -642,10 +659,10 @@
         left.className = 'card__left';
         const option = document.createElement('span');
         option.className = 'opt';
-        option.textContent = dictionary[`option${variant.optionNumber}`] || `Option ${variant.optionNumber}`;
+        option.textContent = translate(dictionary, `option${variant.optionNumber}`);
         const title = document.createElement('span');
         title.className = 'opt__title';
-        title.textContent = dictionary[variant.titleKey] || variant.titleKey || variant.id;
+        title.textContent = translate(dictionary, variant.titleKey) || variant.id;
         left.appendChild(option);
         left.appendChild(title);
         bar.appendChild(left);
@@ -664,7 +681,7 @@
             qrCol.appendChild(qr);
             const hint = document.createElement('div');
             hint.className = 'qrHint';
-            hint.textContent = dictionary.scanCamera || translations.en.scanCamera;
+            hint.textContent = translate(dictionary, 'scanCamera');
             qrCol.appendChild(hint);
             bodyEl.appendChild(qrCol);
         } else {
@@ -676,7 +693,7 @@
         dataCol.appendChild(createAuthFieldsGrid(Array.isArray(variant.fields) ? variant.fields : [], dictionary));
         const cta = document.createElement('div');
         cta.className = 'cta';
-        cta.innerHTML = dictionary.tapConnect || translations.en.tapConnect;
+        cta.innerHTML = translate(dictionary, 'tapConnect');
         dataCol.appendChild(cta);
         bodyEl.appendChild(dataCol);
         article.appendChild(bodyEl);
@@ -751,8 +768,8 @@
         }
 
         upgradeSection.classList.remove('hidden');
-        setText('upgrade-title', dictionary.upgradeCardTitle || translations.en.upgradeCardTitle);
-        setText('upgrade-body', dictionary.upgradeBody || translations.en.upgradeBody);
+        setText('upgrade-title', translate(dictionary, 'upgradeCardTitle'));
+        setText('upgrade-body', translate(dictionary, 'upgradeBody'));
         const link = document.getElementById('upgrade-link');
         if (link) {
             link.href = linkUrl;
@@ -788,7 +805,7 @@
         const portalWarningEl = document.getElementById('portal-warning');
         if (portalWarningEl) {
             portalWarningEl.textContent = portalMissing
-                ? (dictionary?.portalMissing || translations.en.portalMissing)
+                ? translate(dictionary, 'portalMissing')
                 : '';
             portalWarningEl.classList.toggle('hidden', !portalMissing);
         }
@@ -806,8 +823,8 @@
         const title = document.querySelector('title');
         if (title) {
             title.textContent = page === 'upgrade'
-                ? (dictionary.upgradeTitle || translations.en.upgradeTitle)
-                : (dictionary.title || translations.en.title);
+                ? translate(dictionary, 'upgradeTitle')
+                : translate(dictionary, 'title');
         }
     };
 
@@ -831,7 +848,7 @@
 
         const syncViewer = (dictionary = null) => {
             const activeLang = langSelect ? langSelect.value : initialLang;
-            const dict = dictionary || translations[activeLang] || translations.en;
+            const dict = dictionary || getDictionary(activeLang);
             const activeVariant = getActiveVariant();
             const activeUsage = activeVariant?.type === 'free'
                 ? 'free'
@@ -928,11 +945,11 @@
 
         const applyUpgradeText = (lang) => {
             const dictionary = applyTranslations(lang);
-            setText('upgrade-title', dictionary.upgradeCardTitle || translations.en.upgradeCardTitle);
-            setText('upgrade-body', dictionary.upgradeBody || translations.en.upgradeBody);
+            setText('upgrade-title', translate(dictionary, 'upgradeCardTitle'));
+            setText('upgrade-body', translate(dictionary, 'upgradeBody'));
             const title = document.querySelector('title');
             if (title) {
-                title.textContent = dictionary.upgradeTitle || translations.en.upgradeTitle;
+                title.textContent = translate(dictionary, 'upgradeTitle');
             }
         };
 

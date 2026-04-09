@@ -139,7 +139,7 @@
                     <div class="notice notice--warning">No hotels match the current search.</div>
                 </section>
             {% elseif selectedHotel and selectedHotelState %}
-                <section class="panel">
+                <section class="panel panel--hotel-editor">
                     <div class="panel-head">
                         <div>
                             <h3>Reusable Defaults</h3>
@@ -160,6 +160,7 @@
                         id="hotel-settings-form"
                         class="form"
                         data-save-url="{{ path('app_api_hotel_upsert', {externalHotelId: selectedHotel.externalHotelId}) }}"
+                        data-access-url="{{ permissions.access ? path('app_access', {hotel: selectedHotel.externalHotelId}) : '' }}"
                         data-current-logo-url="{{ config.logoUrl ?? '' }}"
                         data-current-logo-source-url="{{ config.logoSourceUrl ?? '' }}"
                     >
