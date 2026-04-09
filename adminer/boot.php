@@ -3,6 +3,22 @@
 class AdminerLoginPasswordLess
 {
     private static $dbConf = null;
+    private const DRIVERS = [
+        "mysql" => "server",
+        "mysqli" => "server",
+        "pdo_mysql" => "server",
+        "sqlite3" => "sqlite",
+        "pdo_sqlite" => "sqlite",
+        "sqlite2" => "sqlite2",
+        "pgsql" => "pgsq",
+        "pdo_pgsql" => "pgsq",
+        "oci8" => "oracle",
+        "pdo_oci" => "oracle",
+        "mssql" => "mssql",
+        "pdo_sqlsrv" => "mssql",
+        "mongo" => "mongo",
+        "elastic" => "elastic",
+    ];
 
     public static function setDbConf($dbConf)
     {
@@ -17,6 +33,16 @@ class AdminerLoginPasswordLess
     public static function isConfigured(): bool
     {
         return static::$dbConf !== null;
+    }
+
+    public static function resolveDriver(): ?string
+    {
+        $scheme = static::$dbConf['scheme'] ?? null;
+        if (!is_string($scheme) || !isset(self::DRIVERS[$scheme])) {
+            return null;
+        }
+
+        return self::DRIVERS[$scheme];
     }
 
     public function login($username, $password)
@@ -37,42 +63,22 @@ class AdminerLoginPasswordLess
 
     public function database()
     {
-        return ltrim(static::$dbConf['path'], '/');
+        return ltrim((string) (static::$dbConf['path'] ?? ''), '/');
     }
 
     public function loginForm()
     {
-        $drivers = [
-            "mysql" => "server",
-            "mysqli" => "server",
-            "pdo_mysql" => "server",
-            "sqlite3" => "sqlite",
-            "pdo_sqlite" => "sqlite",
-            "sqlite2" => "sqlite2",
-            "pgsql" => "pgsq",
-            "pdo_pgsql" => "pgsq",
-            "oci8" => "oracle",
-            "pdo_oci" => "oracle",
-            "mssql" => "mssql",
-            "pdo_sqlsrv" => "mssql",
-            "mongo" => "mongo",
-            "elastic" => "elastic",
-        ];
-
-        if (!isset($drivers[self::$dbConf['scheme']])) {
+        $driver = self::resolveDriver();
+        if ($driver === null) {
             return null;
         }
 
-        $dbValue = '';
-        if (isset(self::$dbConf['scheme']) && in_array(self::$dbConf['scheme'], ['sqlite', 'sqlite3', 'pdo_sqlite', 'sqlite2'], true)) {
-            $dbValue = self::$dbConf['path'] ?? '';
-        }
         $data = [
-            "driver" => $drivers[self::$dbConf['scheme']],
+            "driver" => $driver,
             "server" => "",
             "username" => "",
             "password" => "",
-            "db" => $dbValue
+            "db" => $this->database(),
         ];
         foreach ($data as $var => $value) {
             echo sprintf("<input type=\"hidden\" name=\"auth[%s]\" value=\"%s\">\n", htmlspecialchars($var), htmlspecialchars($value));
@@ -83,6 +89,95 @@ class AdminerLoginPasswordLess
         echo "window.onload = () => {qs('form').submit()}\n";
         echo "</script>\n";
         return true;
+    }
+}
+
+function ensure_adminer_session_started(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE && session_name() === 'adminer_sid') {
+        return;
+    }
+
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+
+    $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '/adminer');
+    $cookiePath = preg_replace('~\?.*~', '', $requestUri) ?: '/';
+    $https = $_SERVER['HTTPS'] ?? null;
+    $secure = is_string($https) && $https !== '' && strcasecmp($https, 'off') !== 0;
+
+    session_cache_limiter('');
+    session_name('adminer_sid');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => $cookiePath,
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
+
+function clear_adminer_invalid_login(): void
+{
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? null;
+    if (!is_string($remoteAddr) || $remoteAddr === '') {
+        return;
+    }
+
+    foreach (glob(sys_get_temp_dir() . '/adminer.invalid*') ?: [] as $path) {
+        $handle = @fopen($path, 'c+');
+        if ($handle === false) {
+            continue;
+        }
+
+        if (!flock($handle, LOCK_EX)) {
+            fclose($handle);
+            continue;
+        }
+
+        $invalidLogins = @unserialize(stream_get_contents($handle));
+        if (is_array($invalidLogins) && array_key_exists($remoteAddr, $invalidLogins)) {
+            unset($invalidLogins[$remoteAddr]);
+            rewind($handle);
+            fwrite($handle, serialize($invalidLogins));
+            ftruncate($handle, ftell($handle));
+        }
+
+        flock($handle, LOCK_UN);
+        fclose($handle);
+    }
+}
+
+function bootstrap_adminer_login(): void
+{
+    if (!AdminerLoginPasswordLess::isConfigured()) {
+        return;
+    }
+
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+        return;
+    }
+
+    if (!isset($_GET['username']) || !is_string($_GET['username'])) {
+        return;
+    }
+
+    $driver = AdminerLoginPasswordLess::resolveDriver();
+    if ($driver === null) {
+        return;
+    }
+
+    $database = isset($_GET['db']) && is_string($_GET['db'])
+        ? $_GET['db']
+        : (new AdminerLoginPasswordLess())->database();
+
+    ensure_adminer_session_started();
+    clear_adminer_invalid_login();
+    $_SESSION['pwds'][$driver][''][$_GET['username']] = '';
+    if ($database !== '') {
+        $_SESSION['db'][$driver][''][$_GET['username']][$database] = true;
     }
 }
 
@@ -164,22 +259,25 @@ function http_authorize($httpAuthorize)
 http_authorize($httpAuth ?? null);
 AdminerLoginPasswordLess::setDbConf($dbConf ?? null);
 
+if (AdminerLoginPasswordLess::isConfigured()) {
+    $database = (new AdminerLoginPasswordLess())->database();
+    $hasUsername = isset($_GET['username']) && is_string($_GET['username']);
+    $hasDatabase = isset($_GET['db']) && is_string($_GET['db']) && $_GET['db'] !== '';
+
+    if (!$hasUsername || !$hasDatabase) {
+        $queryString = 'username=' . urlencode($hasUsername ? $_GET['username'] : '') . '&db=' . urlencode($database);
+        $uri = preg_replace('/\?.*$/', '', $_SERVER['REQUEST_URI']) . '?' . $queryString;
+        header('Location: ' . $uri);
+        exit;
+    }
+}
+
+bootstrap_adminer_login();
+
 chdir(__DIR__);
 
 if (defined("SID") && session_status() !== PHP_SESSION_ACTIVE){
     session_start();
 }
 
-if (
-    AdminerLoginPasswordLess::isConfigured() &&
-    isset($_GET['username']) &&
-    is_string($_GET['username']) &&
-    !isset($_GET['db'])
-) {
-    $database = (new AdminerLoginPasswordLess())->database();
-    $queryString = 'username='.urlencode($_GET['username']).'&db='.urlencode($database);
-    $uri = preg_replace('/\?.*$/', '', $_SERVER['REQUEST_URI']) . "?" . $queryString;
-    header("Location: " . $uri);
-} else {
-    include __DIR__.'/adminer.php';
-}
+include __DIR__.'/adminer.php';

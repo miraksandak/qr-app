@@ -84,6 +84,10 @@
             </header>
 
             <section class="panel panel--selector">
+                {% if requestedHotelError %}
+                    <div class="notice notice--error">{{ requestedHotelError }}</div>
+                {% endif %}
+
                 <form
                     method="get"
                     action="{{ path('app_access') }}"
@@ -92,35 +96,35 @@
                     data-hotels-url="{{ path('app_api_hotels_list') }}"
                     data-hotel-total="{{ hotelBrowser.pagination.total }}"
                     data-selected-hotel="{{ selectedHotel ? selectedHotel.externalHotelId : '' }}"
+                    data-selected-hotel-label="{{ selectedHotel ? (selectedHotel.displayName ?: selectedHotel.externalHotelId) : '' }}"
+                    data-initial-query="{{ hotelBrowser.query }}"
                 >
                     <div class="hotel-picker">
+                        <input type="hidden" name="hotel" value="{{ selectedHotel ? selectedHotel.externalHotelId : '' }}" data-hotel-value>
                         <div class="field">
-                            <label for="hotel-search">Hotel</label>
+                            <label for="hotel-combobox">Hotel</label>
                             <input
-                                id="hotel-search"
-                                class="input hotel-picker__search"
+                                id="hotel-combobox"
+                                class="input hotel-picker__combobox"
                                 type="search"
-                                name="q"
-                                value="{{ hotelBrowser.query }}"
-                                placeholder="Type to filter hotels"
+                                value="{{ hotelBrowser.query ?: (selectedHotel ? (selectedHotel.displayName ?: selectedHotel.externalHotelId) : '') }}"
+                                placeholder="Search and select hotel"
                                 autocomplete="off"
+                                spellcheck="false"
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-expanded="false"
                                 data-hotel-filter
                             >
                             <p class="field-help hotel-picker__status" data-hotel-filter-status></p>
                         </div>
-                        <select id="hotel-selector" class="input hotel-picker__select" name="hotel" data-hotel-select onchange="this.form.submit()">
-                            {% for hotel in hotelBrowser.items %}
-                                <option value="{{ hotel.externalHotelId }}" {% if selectedHotel and hotel.externalHotelId == selectedHotel.externalHotelId %}selected{% endif %}>
-                                    {{ hotel.displayName ?: hotel.externalHotelId }}
-                                </option>
-                            {% else %}
-                                <option value="">No matching hotels</option>
-                            {% endfor %}
-                        </select>
-                        <div class="hotel-picker__pager hidden" data-hotel-pager>
-                            <button class="button button--ghost" type="button" data-hotel-page-prev>Previous</button>
-                            <p class="field-help hotel-picker__page-status" data-hotel-page-status></p>
-                            <button class="button button--ghost" type="button" data-hotel-page-next>Next</button>
+                        <div class="hotel-picker__results hidden" data-hotel-results>
+                            <div class="hotel-picker__list" role="listbox" data-hotel-list></div>
+                            <div class="hotel-picker__pager hidden" data-hotel-pager>
+                                <button class="button button--ghost" type="button" data-hotel-page-prev>Previous</button>
+                                <p class="field-help hotel-picker__page-status" data-hotel-page-status></p>
+                                <button class="button button--ghost" type="button" data-hotel-page-next>Next</button>
+                            </div>
                         </div>
                     </div>
                 </form>
