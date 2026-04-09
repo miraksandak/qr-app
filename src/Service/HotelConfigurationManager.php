@@ -122,6 +122,41 @@ class HotelConfigurationManager
         ];
     }
 
+    /**
+     * @param list<ExternalHotelAccess> $accessibleHotels
+     *
+     * @return array{
+     *     items: list<array<string, mixed>>,
+     *     pagination: array<string, int>,
+     *     query: string,
+     *     selectedExternalHotelId: ?string
+     * }
+     */
+    public function buildInitialAccessibleHotelBrowser(
+        array $accessibleHotels,
+        string $query = '',
+        ?string $selectedExternalHotelId = null
+    ): array {
+        $selectedHotel = $this->resolveSelectedAccessibleHotel($accessibleHotels, $selectedExternalHotelId);
+        $selectedHotelItems = $selectedHotel === null
+            ? []
+            : $this->buildAccessibleHotelList([$selectedHotel]);
+        $selectedExternalHotelId = $selectedHotelItems[0]['externalHotelId'] ?? null;
+        $total = count($accessibleHotels);
+
+        return [
+            'items' => $selectedHotelItems,
+            'pagination' => [
+                'page' => $selectedExternalHotelId === null ? 0 : 1,
+                'pageSize' => count($selectedHotelItems),
+                'pageCount' => $selectedExternalHotelId === null ? 0 : 1,
+                'total' => $total,
+            ],
+            'query' => trim($query),
+            'selectedExternalHotelId' => $selectedExternalHotelId,
+        ];
+    }
+
     public function buildHotelSnapshot(ExternalHotelAccess $accessibleHotel): array
     {
         $hotel = $this->hotelRepository->findOneByExternalHotelId($accessibleHotel->getExternalHotelId());
@@ -147,6 +182,28 @@ class HotelConfigurationManager
                 'missingConfigurationFields' => $this->findMissingConfigurationFields($preview),
             ],
         ];
+    }
+
+    /**
+     * @param list<ExternalHotelAccess> $accessibleHotels
+     */
+    private function resolveSelectedAccessibleHotel(
+        array $accessibleHotels,
+        ?string $selectedExternalHotelId
+    ): ?ExternalHotelAccess {
+        $normalizedSelectedExternalHotelId = is_string($selectedExternalHotelId)
+            ? trim($selectedExternalHotelId)
+            : '';
+
+        if ($normalizedSelectedExternalHotelId !== '') {
+            foreach ($accessibleHotels as $accessibleHotel) {
+                if ($accessibleHotel->getExternalHotelId() === $normalizedSelectedExternalHotelId) {
+                    return $accessibleHotel;
+                }
+            }
+        }
+
+        return $accessibleHotels[0] ?? null;
     }
 
     public function ensureHotelWithConfiguration(ExternalHotelAccess $accessibleHotel): Hotel
@@ -261,10 +318,10 @@ class HotelConfigurationManager
 
     public function buildManualAuthPayload(HotelConfiguration $configuration, array $options): array
     {
-        $mode = $this->normalizePrimaryAuthMode($options['mode'] ?? $configuration->getPrimaryAuthMode());
+        $preferredMode = $this->normalizePrimaryAuthMode($options['mode'] ?? $configuration->getPrimaryAuthMode());
         $freeAccess = $options['freeAccess'] ?? false;
         $payload = [
-            'mode' => $mode,
+            'mode' => $preferredMode,
             'freeAccess' => [
                 'enabled' => $this->normalizeBoolean(
                     is_array($freeAccess) ? ($freeAccess['enabled'] ?? false) : $freeAccess
@@ -272,28 +329,56 @@ class HotelConfigurationManager
             ],
         ];
 
-        if ($mode === 'accessCode') {
-            $accessCode = $options['accessCode'] ?? [];
-            $legacyAccessCode = $options['ac'] ?? [];
-            $code = $this->normalizeNullableString(
-                (is_array($accessCode) ? ($accessCode['code'] ?? null) : $accessCode)
-                ?? (is_array($legacyAccessCode) ? ($legacyAccessCode['code'] ?? null) : $legacyAccessCode)
-                ?? $options['accessCode']
-                ?? null
-            );
-            if ($code === null) {
-                throw new \InvalidArgumentException('Access code is required.');
-            }
+        $availableModes = [];
 
-            $payload['accessCode'] = [
-                'code' => $code,
-            ];
-            $payload['ac'] = $payload['accessCode'];
+        $pmsPayload = $this->buildManualPmsPayload($configuration, $options);
+        if ($pmsPayload !== null) {
+            $payload['pms'] = $pmsPayload['pms'];
+            $payload['roomSurname'] = $pmsPayload['roomSurname'];
+            $availableModes[] = 'roomSurname';
+        }
+
+        $accessCodePayload = $this->buildManualAccessCodePayload($options);
+        if ($accessCodePayload !== null) {
+            $payload['accessCode'] = $accessCodePayload;
+            $payload['ac'] = $accessCodePayload;
+            $availableModes[] = 'accessCode';
+        }
+
+        if ($availableModes === []) {
+            throw new \InvalidArgumentException('At least one authentication option is required.');
+        }
+
+        if (!in_array($preferredMode, $availableModes, true)) {
+            $payload['mode'] = $availableModes[0];
+        }
+
+        if ($payload['mode'] === 'accessCode' && isset($payload['accessCode']['code'])) {
             $payload['fields'] = [
-                ['key' => 'accessCode', 'value' => $code],
+                ['key' => 'accessCode', 'value' => $payload['accessCode']['code']],
             ];
 
             return $payload;
+        }
+
+        if ($pmsPayload !== null) {
+            $payload['fields'] = $pmsPayload['fields'];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array{
+     *     pms: array<string, string|null>,
+     *     roomSurname: array{room: string, roomNumber: string, surname: string},
+     *     fields: list<array{key: string, value: string}>
+     * }|null
+     */
+    private function buildManualPmsPayload(HotelConfiguration $configuration, array $options): ?array
+    {
+        if (!array_key_exists('pms', $options) && !array_key_exists('roomSurname', $options)) {
+            return null;
         }
 
         $rawPms = $options['pms'] ?? $options['roomSurname'] ?? [];
@@ -303,6 +388,8 @@ class HotelConfigurationManager
 
         $fields = [];
         $pmsValues = [];
+        $hasAnyValue = false;
+
         foreach ($configuration->getPmsCredentialFields() as $fieldName) {
             $value = $this->normalizeNullableString(
                 $rawPms[$fieldName]
@@ -310,26 +397,64 @@ class HotelConfigurationManager
                 ?? null
             );
 
+            if ($value !== null) {
+                $hasAnyValue = true;
+            }
+
+            $pmsValues[$fieldName] = $value;
+        }
+
+        if (!$hasAnyValue) {
+            return null;
+        }
+
+        foreach ($pmsValues as $fieldName => $value) {
             if ($value === null) {
                 throw new \InvalidArgumentException(sprintf('PMS field "%s" is required.', $fieldName));
             }
 
-            $pmsValues[$fieldName] = $value;
             $fields[] = [
                 'key' => $fieldName,
                 'value' => $value,
             ];
         }
 
-        $payload['pms'] = $pmsValues + ['provider' => $configuration->getPmsProvider()];
-        $payload['roomSurname'] = [
-            'room' => $pmsValues['roomNumber'] ?? '',
-            'roomNumber' => $pmsValues['roomNumber'] ?? '',
-            'surname' => $pmsValues['surname'] ?? '',
+        return [
+            'pms' => $pmsValues + ['provider' => $configuration->getPmsProvider()],
+            'roomSurname' => [
+                'room' => $pmsValues['roomNumber'] ?? '',
+                'roomNumber' => $pmsValues['roomNumber'] ?? '',
+                'surname' => $pmsValues['surname'] ?? '',
+            ],
+            'fields' => $fields,
         ];
-        $payload['fields'] = $fields;
+    }
 
-        return $payload;
+    /**
+     * @return array{code: string}|null
+     */
+    private function buildManualAccessCodePayload(array $options): ?array
+    {
+        if (!array_key_exists('accessCode', $options) && !array_key_exists('ac', $options)) {
+            return null;
+        }
+
+        $accessCode = $options['accessCode'] ?? [];
+        $legacyAccessCode = $options['ac'] ?? [];
+        $code = $this->normalizeNullableString(
+            (is_array($accessCode) ? ($accessCode['code'] ?? null) : $accessCode)
+            ?? (is_array($legacyAccessCode) ? ($legacyAccessCode['code'] ?? null) : $legacyAccessCode)
+            ?? $options['accessCode']
+            ?? null
+        );
+
+        if ($code === null) {
+            return null;
+        }
+
+        return [
+            'code' => $code,
+        ];
     }
 
     public function isConfigurationComplete(HotelConfiguration|HotelConfigurationPreview|null $configuration): bool

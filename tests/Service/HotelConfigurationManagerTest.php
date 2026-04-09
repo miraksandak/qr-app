@@ -41,6 +41,22 @@ final class HotelConfigurationManagerTest extends TestCase
         self::assertSame('hotel-060', $browser['selectedExternalHotelId']);
     }
 
+    public function testBuildInitialAccessibleHotelBrowserLoadsOnlySelectedHotel(): void
+    {
+        $manager = $this->createManager();
+
+        $browser = $manager->buildInitialAccessibleHotelBrowser(
+            $this->createAccessibleHotels(60),
+            '',
+            'hotel-060'
+        );
+
+        self::assertCount(1, $browser['items']);
+        self::assertSame('hotel-060', $browser['items'][0]['externalHotelId']);
+        self::assertSame(60, $browser['pagination']['total']);
+        self::assertSame('hotel-060', $browser['selectedExternalHotelId']);
+    }
+
     private function createManager(): HotelConfigurationManager
     {
         $hotelRepository = $this->createMock(HotelRepository::class);

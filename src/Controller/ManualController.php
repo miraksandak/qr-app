@@ -8,6 +8,7 @@ use App\Repository\HotelRepository;
 use App\Repository\ManualRecordRepository;
 use App\Security\ExternalUser;
 use App\Service\HotelConfigurationManager;
+use App\Service\ManualPayloadViewBuilder;
 use App\Service\ManualUrlGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -117,7 +118,7 @@ class ManualController extends AbstractController
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_BAD_REQUEST);
         }
 
-        if (($authPayload['mode'] ?? null) === 'accessCode' && !$hotelConfigurationManager->isAccessCodeAllowed($configuration)) {
+        if (isset($authPayload['accessCode']) && !$hotelConfigurationManager->isAccessCodeAllowed($configuration)) {
             return new JsonResponse([
                 'error' => 'Access code cannot be created until the hotel configuration is complete.',
             ], Response::HTTP_BAD_REQUEST);
@@ -166,14 +167,28 @@ class ManualController extends AbstractController
     }
 
     #[Route('/json/{id}', name: 'manual_json', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
-    public function manualJson(string $id, ManualRecordRepository $repository): JsonResponse
+    public function manualJson(
+        string $id,
+        ManualRecordRepository $repository,
+        ManualPayloadViewBuilder $manualPayloadViewBuilder
+    ): JsonResponse
     {
         $record = $this->findActiveRecord($id, $repository);
         if ($record === null) {
             return new JsonResponse(['error' => 'Not found'], Response::HTTP_NOT_FOUND);
         }
 
-        return new JsonResponse($record->getPayloadJson(), Response::HTTP_OK, [], true);
+        try {
+            $payload = json_decode($record->getPayloadJson(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return new JsonResponse(['error' => 'Stored payload is invalid'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Stored payload is invalid'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return new JsonResponse($manualPayloadViewBuilder->build($payload));
     }
 
     #[Route('/upgrade/{id}', name: 'manual_upgrade', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
@@ -312,10 +327,14 @@ class ManualController extends AbstractController
 
     private function sanitizePayload(array $payload): array
     {
-        unset($payload['steps'], $payload['hotelExternalId']);
+        unset($payload['steps'], $payload['hotelExternalId'], $payload['manual']);
 
         if (isset($payload['hotel']) && is_array($payload['hotel'])) {
             unset($payload['hotel']['externalHotelId']);
+        }
+
+        if (isset($payload['options']) && is_array($payload['options'])) {
+            unset($payload['options']['fields'], $payload['options']['variants']);
         }
 
         if (isset($payload['upgrade']) && is_array($payload['upgrade'])) {
@@ -388,51 +407,39 @@ class ManualController extends AbstractController
         }
 
         $portalBase = rtrim($portalUrl, '/');
-        $mode = (string) ($payload['options']['mode'] ?? 'roomSurname');
-
-        if ($mode === 'accessCode') {
-            $code = trim((string) ($payload['options']['accessCode']['code'] ?? ''));
-            if ($code === '') {
-                return $payload;
-            }
-
+        $code = trim((string) ($payload['options']['accessCode']['code'] ?? ''));
+        if ($code !== '') {
             $url = $portalBase . '/access-code?code=' . rawurlencode($code);
             $payload['options']['accessCode']['url'] = $url;
             $payload['options']['ac']['url'] = $url;
-
-            return $payload;
         }
 
         $pmsValues = is_array($payload['options']['pms'] ?? null) ? $payload['options']['pms'] : [];
-        if ($pmsValues === []) {
-            return $payload;
-        }
+        if ($pmsValues !== []) {
+            $query = [];
+            foreach ($pmsValues as $key => $value) {
+                if (!is_string($key) || in_array($key, ['provider', 'fields', 'url'], true)) {
+                    continue;
+                }
 
-        $query = [];
-        foreach ($pmsValues as $key => $value) {
-            if (!is_string($key) || $key === 'provider') {
-                continue;
+                $normalizedValue = trim((string) $value);
+                if ($normalizedValue === '') {
+                    continue;
+                }
+
+                $query[$key] = $normalizedValue;
             }
 
-            $normalizedValue = trim((string) $value);
-            if ($normalizedValue === '') {
-                continue;
+            if (isset($query['roomNumber']) && !isset($query['room'])) {
+                $query['room'] = $query['roomNumber'];
             }
 
-            $query[$key] = $normalizedValue;
+            if ($query !== []) {
+                $url = $portalBase . '/room-login?' . http_build_query($query);
+                $payload['options']['pms']['url'] = $url;
+                $payload['options']['roomSurname']['url'] = $url;
+            }
         }
-
-        if (isset($query['roomNumber']) && !isset($query['room'])) {
-            $query['room'] = $query['roomNumber'];
-        }
-
-        if ($query === []) {
-            return $payload;
-        }
-
-        $url = $portalBase . '/room-login?' . http_build_query($query);
-        $payload['options']['pms']['url'] = $url;
-        $payload['options']['roomSurname']['url'] = $url;
 
         return $payload;
     }

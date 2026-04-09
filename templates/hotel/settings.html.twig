@@ -13,7 +13,7 @@
 
 {% block body %}
     {% set missingLabels = {
-        portalUrl: 'Portal URL',
+        portalUrl: 'Guest Portal URL',
         pmsProvider: 'PMS',
         pmsCredentialFields: 'PMS fields',
         ssids: 'SSID list'
@@ -71,7 +71,15 @@
             </header>
 
             <section class="panel panel--selector">
-                <form method="get" action="{{ path('app_hotel_settings') }}" class="selector-form selector-form--picker" data-hotel-picker>
+                <form
+                    method="get"
+                    action="{{ path('app_hotel_settings') }}"
+                    class="selector-form selector-form--picker"
+                    data-hotel-picker
+                    data-hotels-url="{{ path('app_api_hotels_list') }}"
+                    data-hotel-total="{{ hotelBrowser.pagination.total }}"
+                    data-selected-hotel="{{ selectedHotel ? selectedHotel.externalHotelId : '' }}"
+                >
                     <div class="hotel-picker">
                         <div class="field">
                             <label for="hotel-search">Hotel</label>
@@ -96,6 +104,11 @@
                                 <option value="">No matching hotels</option>
                             {% endfor %}
                         </select>
+                        <div class="hotel-picker__pager hidden" data-hotel-pager>
+                            <button class="button button--ghost" type="button" data-hotel-page-prev>Previous</button>
+                            <p class="field-help hotel-picker__page-status" data-hotel-page-status></p>
+                            <button class="button button--ghost" type="button" data-hotel-page-next>Next</button>
+                        </div>
                     </div>
                 </form>
 
@@ -145,6 +158,7 @@
                         class="form"
                         data-save-url="{{ path('app_api_hotel_upsert', {externalHotelId: selectedHotel.externalHotelId}) }}"
                         data-current-logo-url="{{ config.logoUrl ?? '' }}"
+                        data-current-logo-source-url="{{ config.logoSourceUrl ?? '' }}"
                     >
                         <div class="grid grid--two">
                             <div class="field">
@@ -152,8 +166,8 @@
                                 <input id="hotelName" class="input" type="text" value="{{ selectedHotelState.hotel.name ?? '' }}">
                             </div>
                             <div class="field">
-                                <label for="portalUrl">Portal URL</label>
-                                <input id="portalUrl" class="input" type="text" value="{{ config.portalUrl ?? '' }}" placeholder="https://portal.example.com">
+                                <label for="portalUrl">Guest Portal URL</label>
+                                <input id="portalUrl" class="input" type="text" value="{{ config.portalUrl ?? '' }}" placeholder="https://guest-portal.example.com">
                             </div>
                             <div class="field">
                                 <label for="hotelSupport">Support Text</label>
@@ -167,11 +181,10 @@
                                 <label for="pmsProvider">PMS</label>
                                 <input id="pmsProvider" class="input" type="text" list="pmsProviderOptions" value="{{ config.pmsProvider ?? '' }}" placeholder="Select or type PMS">
                                 <datalist id="pmsProviderOptions">
-                                    <option value="Mews"></option>
-                                    <option value="Opera"></option>
-                                    <option value="Protel"></option>
-                                    <option value="Cloudbeds"></option>
-                                    <option value="Custom"></option>
+                                    <option value="Mikenopa Fias"></option>
+                                    <option value="Otrum"></option>
+                                    <option value="OHIP"></option>
+                                    <option value="Disabled"></option>
                                 </datalist>
                             </div>
                         </div>
@@ -198,9 +211,7 @@
                                         <img id="logoPreviewImage" src="" alt="Current hotel logo" class="hidden">
                                     {% endif %}
                                     <p id="logoPreviewEmpty" class="logo-preview__empty {% if config.logoUrl %}hidden{% endif %}">No logo configured.</p>
-                                    {% if config.logoSourceUrl %}
-                                        <p class="field-help">Legacy URL logo is still in use.</p>
-                                    {% endif %}
+                                    <p id="logoPreviewLegacy" class="field-help {% if not config.logoSourceUrl %}hidden{% endif %}">Legacy URL logo is still in use.</p>
                                 </div>
                             </div>
                         </section>
@@ -235,6 +246,26 @@
                             <div id="ssidRows" class="ssid-list" data-ssids="{{ config.ssids|default([])|json_encode|e('html_attr') }}"></div>
                             <div class="actions actions--tight">
                                 <button id="addSsidRow" class="button" type="button">Add SSID</button>
+                            </div>
+                        </section>
+
+                        <section class="panel-sub">
+                            <div class="panel-head panel-head--compact">
+                                <div>
+                                    <p class="panel-head__eyebrow">Upgrade</p>
+                                    <h3>Connection Upgrade</h3>
+                                </div>
+                                <p class="panel-head__copy">Keep empty to hide the upgrade page for this hotel.</p>
+                            </div>
+
+                            <div class="grid grid--two">
+                                <div class="field field--inline">
+                                    <label><input id="upgradeEnabled" type="checkbox" {% if config.upgrade.enabled %}checked{% endif %}> Enable upgrade page</label>
+                                </div>
+                                <div class="field">
+                                    <label for="upgradeUrl">Upgrade URL</label>
+                                    <input id="upgradeUrl" class="input" type="text" value="{{ config.upgrade.url ?? '' }}" placeholder="https://upgrade.example.com">
+                                </div>
                             </div>
                         </section>
 

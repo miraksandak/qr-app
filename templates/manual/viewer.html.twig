@@ -6,7 +6,15 @@
     <main class="sheet">
         {% if page != 'print' %}
             <div class="sheet-tools">
-                <a class="sheet-tool" href="{{ path('manual_print', {id: id}) }}">Print</a>
+                <a class="sheet-tool" href="{{ path('manual_print', {id: id}) }}" target="_blank" rel="noreferrer">
+                    <svg class="sheet-tool__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M7 8V4h10v4"/>
+                        <rect x="5" y="9" width="14" height="7" rx="2"/>
+                        <path d="M7 14h10v6H7z"/>
+                        <path d="M16 11h1"/>
+                    </svg>
+                    <span class="sheet-tool__label">Print / PDF</span>
+                </a>
             </div>
         {% endif %}
 
@@ -32,46 +40,31 @@
                     <span class="dot hidden">•</span>
                     <span id="portal-host" class="hidden"></span>
                 </p>
+                <p id="portal-warning" class="subtitle subtitle--warning hidden" data-i18n="portalMissing">Guest portal URL is missing for this document.</p>
             </div>
         </header>
 
-        <section class="device">
-            <div class="device__label" data-i18n="deviceLabel">Device</div>
-            <div id="device-buttons" class="device-buttons"></div>
-        </section>
+        <div class="manual-overview">
+            <div class="manual-overview__meta">
+                <section class="device">
+                    <div class="device__label" data-i18n="deviceLabel">Device</div>
+                    <div id="device-buttons" class="device-buttons"></div>
+                </section>
 
-        <section id="ssid-section" class="device hidden">
-            <div class="device__label" data-i18n="ssidLabel">Network</div>
-            <div id="ssid-buttons" class="device-buttons"></div>
-        </section>
+                <section id="ssid-section" class="device hidden">
+                    <div class="device__label" data-i18n="ssidLabel">Network</div>
+                    <div id="ssid-buttons" class="device-buttons"></div>
+                </section>
+            </div>
 
-        <section class="steps">
-            <div class="steps__label" data-i18n="stepsLabel">Steps</div>
-            <ol id="steps-list" class="steps-list"></ol>
-        </section>
+            <section class="steps">
+                <div class="steps__label" data-i18n="stepsLabel">Steps</div>
+                <ol id="steps-list" class="steps-list"></ol>
+            </section>
+        </div>
 
         <section class="list">
-            <article id="auth-card" class="card">
-                <div class="card__bar">
-                    <div class="card__left">
-                        <span id="auth-option-label" class="opt" data-i18n="option1">Option 1</span>
-                        <span id="auth-option-title" class="opt__title" data-i18n="roomSurname">Room + Surname</span>
-                    </div>
-                </div>
-
-                <div class="card__body">
-                    <div id="auth-qr-col" class="qrCol">
-                        <canvas class="qr" id="qr-auth" width="150" height="150"></canvas>
-                        <div class="qrHint" data-i18n="scanCamera">Scan with Camera</div>
-                    </div>
-
-                    <div class="dataCol">
-                        <div id="auth-fields" class="dataGrid"></div>
-                        <div id="auth-cta" class="cta" data-i18n="tapConnect">Tap <strong>Connect</strong></div>
-                    </div>
-                </div>
-            </article>
-
+            <div id="auth-variants" class="list"></div>
             <article id="free-card" class="card card--free hidden">
                 <div class="card__bar">
                     <div class="card__left">

@@ -17,6 +17,8 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class HotelController extends AbstractController
 {
+    private const API_HOTELS_PAGE_SIZE = 50;
+
     public function __construct(
         private EntityManagerInterface $entityManager
     ) {
@@ -32,10 +34,15 @@ class HotelController extends AbstractController
             (string) $request->query->get('q', ''),
             (string) $request->query->get('hotel', '')
         );
+        $paginated = $this->paginateHotelBrowser(
+            $browser['items'],
+            $browser['selectedExternalHotelId'],
+            $request
+        );
 
         return new JsonResponse([
-            'data' => $browser['items'],
-            'meta' => $browser['pagination'],
+            'data' => $paginated['items'],
+            'meta' => $paginated['pagination'],
         ]);
     }
 
@@ -162,5 +169,68 @@ class HotelController extends AbstractController
         }
 
         return [$payload, null];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     *
+     * @return array{
+     *     items: list<array<string, mixed>>,
+     *     pagination: array{page: int, pageSize: int, pageCount: int, total: int}
+     * }
+     */
+    private function paginateHotelBrowser(array $items, ?string $selectedExternalHotelId, Request $request): array
+    {
+        $total = count($items);
+        $pageSize = self::API_HOTELS_PAGE_SIZE;
+        $pageCount = $total > 0 ? (int) ceil($total / $pageSize) : 0;
+
+        if ($pageCount === 0) {
+            return [
+                'items' => [],
+                'pagination' => [
+                    'page' => 0,
+                    'pageSize' => $pageSize,
+                    'pageCount' => 0,
+                    'total' => 0,
+                ],
+            ];
+        }
+
+        $page = $request->query->has('page')
+            ? max(1, (int) $request->query->get('page', 1))
+            : $this->resolveSelectedHotelPage($items, $selectedExternalHotelId, $pageSize);
+        $page = min($page, $pageCount);
+        $offset = ($page - 1) * $pageSize;
+
+        return [
+            'items' => array_slice($items, $offset, $pageSize),
+            'pagination' => [
+                'page' => $page,
+                'pageSize' => $pageSize,
+                'pageCount' => $pageCount,
+                'total' => $total,
+            ],
+        ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $items
+     */
+    private function resolveSelectedHotelPage(array $items, ?string $selectedExternalHotelId, int $pageSize): int
+    {
+        if (!is_string($selectedExternalHotelId) || $selectedExternalHotelId === '') {
+            return 1;
+        }
+
+        foreach ($items as $index => $item) {
+            if (($item['externalHotelId'] ?? null) !== $selectedExternalHotelId) {
+                continue;
+            }
+
+            return (int) floor($index / $pageSize) + 1;
+        }
+
+        return 1;
     }
 }

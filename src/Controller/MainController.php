@@ -27,11 +27,19 @@ class MainController extends AbstractController
             throw $this->createAccessDeniedException('You do not have access to access documents.');
         }
 
-        $hotelBrowser = $hotelConfigurationManager->buildAccessibleHotelBrowser(
-            $user->getAccessibleHotels(),
-            (string) $request->query->get('q', ''),
-            (string) $request->query->get('hotel', '')
-        );
+        $query = (string) $request->query->get('q', '');
+        $selectedExternalHotelId = (string) $request->query->get('hotel', '');
+        $hotelBrowser = trim($query) === ''
+            ? $hotelConfigurationManager->buildInitialAccessibleHotelBrowser(
+                $user->getAccessibleHotels(),
+                $query,
+                $selectedExternalHotelId
+            )
+            : $hotelConfigurationManager->buildAccessibleHotelBrowser(
+                $user->getAccessibleHotels(),
+                $query,
+                $selectedExternalHotelId
+            );
         $selectedHotel = $this->resolveSelectedHotel($hotelBrowser['selectedExternalHotelId'], $user);
 
         return $this->render('access/index.html.twig', [

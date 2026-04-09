@@ -13,7 +13,7 @@
 
 {% block body %}
     {% set missingLabels = {
-        portalUrl: 'Portal URL',
+        portalUrl: 'Guest Portal URL',
         pmsProvider: 'PMS',
         pmsCredentialFields: 'PMS fields',
         ssids: 'SSID list'
@@ -45,7 +45,6 @@
                 <div class="app-topbar__copy">
                     <p class="page-head__eyebrow">QR Access</p>
                     <strong>Standalone Connector App</strong>
-                    <p>Hotels loaded via OAuth.</p>
                 </div>
             </div>
             <div class="app-topbar__meta">
@@ -85,7 +84,15 @@
             </header>
 
             <section class="panel panel--selector">
-                <form method="get" action="{{ path('app_access') }}" class="selector-form selector-form--picker" data-hotel-picker>
+                <form
+                    method="get"
+                    action="{{ path('app_access') }}"
+                    class="selector-form selector-form--picker"
+                    data-hotel-picker
+                    data-hotels-url="{{ path('app_api_hotels_list') }}"
+                    data-hotel-total="{{ hotelBrowser.pagination.total }}"
+                    data-selected-hotel="{{ selectedHotel ? selectedHotel.externalHotelId : '' }}"
+                >
                     <div class="hotel-picker">
                         <div class="field">
                             <label for="hotel-search">Hotel</label>
@@ -110,6 +117,11 @@
                                 <option value="">No matching hotels</option>
                             {% endfor %}
                         </select>
+                        <div class="hotel-picker__pager hidden" data-hotel-pager>
+                            <button class="button button--ghost" type="button" data-hotel-page-prev>Previous</button>
+                            <p class="field-help hotel-picker__page-status" data-hotel-page-status></p>
+                            <button class="button button--ghost" type="button" data-hotel-page-next>Next</button>
+                        </div>
                     </div>
                 </form>
 
@@ -187,6 +199,7 @@
                                 <div class="field field--inline">
                                     <label><input id="freeEnabled" type="checkbox"> Enable free access</label>
                                 </div>
+                                <p class="field-help">Fill one or both authentication options. The selected primary option is shown as Option 1 in the manual.</p>
 
                                 <section id="roomSurnameFields" class="option-card">
                                     <div class="option-card__head">
@@ -210,7 +223,7 @@
                                     <p class="field-help">Configured PMS: {{ config.pmsProvider ?: 'not selected yet' }}</p>
                                 </section>
 
-                                <section id="accessCodeFields" class="option-card hidden">
+                                <section id="accessCodeFields" class="option-card {% if not selectedHotelState.meta.accessCodeAllowed %}hidden{% endif %}">
                                     <div class="option-card__head">
                                         <span class="pill">Option</span>
                                         <h4>Access Code</h4>
@@ -255,6 +268,10 @@
                                     <span>Print</span>
                                     <strong></strong>
                                 </a>
+                                <a id="result-upgrade" class="result-card" href="#" target="_blank" rel="noreferrer">
+                                    <span>Upgrade</span>
+                                    <strong></strong>
+                                </a>
                             </div>
                         </section>
                     </div>
@@ -272,22 +289,6 @@
                                 <input id="open-id" class="input" type="text" maxlength="5" placeholder="ABCDE" autocomplete="off">
                                 <button class="button" type="submit">Open Viewer</button>
                             </form>
-                        </section>
-
-                        <section class="panel panel--compact">
-                            <div class="panel-head panel-head--compact">
-                                <div>
-                                    <p class="panel-head__eyebrow">Configuration</p>
-                                    <h3>Status</h3>
-                                </div>
-                            </div>
-                            <p class="panel-copy">
-                                {% if selectedHotelState.meta.configurationComplete %}
-                                    Hotel configuration is complete.
-                                {% else %}
-                                    Fill in the missing configuration fields before using access codes.
-                                {% endif %}
-                            </p>
                         </section>
                     </aside>
                 </div>

@@ -689,8 +689,21 @@ code {
     min-height: 54px;
 }
 
+.hotel-picker__pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
 .hotel-picker__status {
     min-height: 1.2em;
+}
+
+.hotel-picker__page-status {
+    flex: 1 1 180px;
+    text-align: center;
 }
 
 .notice-stack {
