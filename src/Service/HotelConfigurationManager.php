@@ -691,12 +691,23 @@ class HotelConfigurationManager
 
     private function applyUpgradePatch(HotelConfiguration $configuration, array $payload): void
     {
+        $enabled = array_key_exists('enabled', $payload)
+            ? $this->normalizeBoolean($payload['enabled'])
+            : $configuration->isUpgradeEnabled();
+        $url = array_key_exists('url', $payload)
+            ? $this->normalizeNullableString($payload['url'])
+            : $configuration->getUpgradeUrl();
+
+        if ($enabled && $url === null) {
+            throw new \InvalidArgumentException('upgrade.url is required when the upgrade page is enabled');
+        }
+
         if (array_key_exists('enabled', $payload)) {
-            $configuration->setUpgradeEnabled($this->normalizeBoolean($payload['enabled']));
+            $configuration->setUpgradeEnabled($enabled);
         }
 
         if (array_key_exists('url', $payload)) {
-            $configuration->setUpgradeUrl($this->normalizeNullableString($payload['url']));
+            $configuration->setUpgradeUrl($url);
         }
     }
 

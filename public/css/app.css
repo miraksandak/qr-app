@@ -800,6 +800,96 @@ code {
     border: 1px solid rgba(11, 111, 68, 0.08);
 }
 
+.panel-sub--compact {
+    gap: 12px;
+}
+
+.upgrade-panel {
+    gap: 12px;
+    padding: 18px 20px;
+    background: #f8faf8;
+}
+
+.upgrade-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.upgrade-panel__title {
+    display: grid;
+    gap: 4px;
+}
+
+.upgrade-panel__title h3 {
+    font-size: 1.15rem;
+}
+
+.upgrade-panel__toggleline {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--ink);
+    font-size: 0.94rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.upgrade-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.upgrade-switch input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.upgrade-switch__track {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: 54px;
+    height: 32px;
+    padding: 3px;
+    border-radius: 999px;
+    background: #dce5df;
+    border: 1px solid rgba(21, 33, 29, 0.1);
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.upgrade-switch__thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 5px 14px rgba(21, 33, 29, 0.14);
+    transition: transform 0.2s ease;
+}
+
+.upgrade-switch input:checked + .upgrade-switch__track {
+    background: linear-gradient(135deg, var(--brand) 0%, #2b9467 100%);
+    border-color: rgba(11, 111, 68, 0.18);
+}
+
+.upgrade-switch input:checked + .upgrade-switch__track .upgrade-switch__thumb {
+    transform: translateX(22px);
+}
+
+.upgrade-switch input:focus-visible + .upgrade-switch__track {
+    box-shadow: 0 0 0 4px rgba(11, 111, 68, 0.12);
+}
+
+.upgrade-panel__reveal {
+    padding-top: 4px;
+}
+
 .checkbox-row--wrap {
     row-gap: 10px;
 }
@@ -933,5 +1023,11 @@ code {
     .app-rail h1 {
         max-width: none;
         font-size: 2rem;
+    }
+
+    .upgrade-panel__header,
+    .upgrade-panel__toggleline {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }

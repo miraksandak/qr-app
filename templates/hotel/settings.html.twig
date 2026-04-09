@@ -142,8 +142,7 @@
                 <section class="panel">
                     <div class="panel-head">
                         <div>
-                            <p class="panel-head__eyebrow">Reusable Defaults</p>
-                            <h3>Edit Settings</h3>
+                            <h3>Reusable Defaults</h3>
                         </div>
                         <p class="panel-head__copy">Saved here and reused for new documents.</p>
                     </div>
@@ -196,7 +195,6 @@
                         <section class="panel-sub">
                             <div class="panel-head panel-head--compact">
                                 <div>
-                                    <p class="panel-head__eyebrow">Branding</p>
                                     <h3>Logo</h3>
                                 </div>
                             </div>
@@ -223,8 +221,7 @@
                         <section class="panel-sub">
                             <div class="panel-head panel-head--compact">
                                 <div>
-                                    <p class="panel-head__eyebrow">PMS Data</p>
-                                    <h3>Credential Fields</h3>
+                                    <h3>PMS Credential Fields</h3>
                                 </div>
                                 <p class="panel-head__copy">Room Number is always required. Select at least one more field.</p>
                             </div>
@@ -241,7 +238,6 @@
                         <section class="panel-sub">
                             <div class="panel-head panel-head--compact">
                                 <div>
-                                    <p class="panel-head__eyebrow">Networks</p>
                                     <h3>SSID List</h3>
                                 </div>
                                 <p class="panel-head__copy">Assign each SSID to the usages it should be available for.</p>
@@ -253,19 +249,24 @@
                             </div>
                         </section>
 
-                        <section class="panel-sub">
-                            <div class="panel-head panel-head--compact">
-                                <div>
-                                    <p class="panel-head__eyebrow">Upgrade</p>
+                        <section class="panel-sub panel-sub--compact upgrade-panel">
+                            <div class="upgrade-panel__header">
+                                <div class="upgrade-panel__title">
                                     <h3>Connection Upgrade</h3>
                                 </div>
-                                <p class="panel-head__copy">Keep empty to hide the upgrade page for this hotel.</p>
+
+                                <label class="upgrade-panel__toggleline" aria-label="Enable upgrade page">
+                                    <span>Enable upgrade page</span>
+                                    <span class="upgrade-switch">
+                                        <input id="upgradeEnabled" type="checkbox" {% if config.upgrade.enabled %}checked{% endif %}>
+                                        <span class="upgrade-switch__track" aria-hidden="true">
+                                            <span class="upgrade-switch__thumb"></span>
+                                        </span>
+                                    </span>
+                                </label>
                             </div>
 
-                            <div class="grid grid--two">
-                                <div class="field field--inline">
-                                    <label><input id="upgradeEnabled" type="checkbox" {% if config.upgrade.enabled %}checked{% endif %}> Enable upgrade page</label>
-                                </div>
+                            <div class="upgrade-panel__reveal {% if not config.upgrade.enabled %}hidden{% endif %}" data-upgrade-url-field>
                                 <div class="field">
                                     <label for="upgradeUrl">Upgrade URL</label>
                                     <input id="upgradeUrl" class="input" type="text" value="{{ config.upgrade.url ?? '' }}" placeholder="https://upgrade.example.com">
