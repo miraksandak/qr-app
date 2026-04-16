@@ -1,6 +1,7 @@
 {% extends 'manual/base.html.twig' %}
+{% trans_default_domain 'manual' %}
 
-{% block title %}Guest Wi-Fi Login{% endblock %}
+{% block title %}{{ 'ui.title'|trans }}{% endblock %}
 
 {% block body %}
     <main class="sheet">
@@ -13,16 +14,16 @@
                         <path d="M7 14h10v6H7z"/>
                         <path d="M16 11h1"/>
                     </svg>
-                    <span class="sheet-tool__label">Print / PDF</span>
+                    <span class="sheet-tool__label" data-i18n="printPdf">{{ 'ui.printPdf'|trans }}</span>
                 </a>
             </div>
         {% endif %}
 
-        <div class="lang-switch" aria-label="Language selector">
-            <label for="langSelect" class="lang-switch__label" data-i18n="language">Language</label>
+        <div class="lang-switch" aria-label="{{ 'ui.languageSelector'|trans }}">
+            <label for="langSelect" class="lang-switch__label" data-i18n="language">{{ 'ui.language'|trans }}</label>
             <select id="langSelect" class="lang-switch__select">
-                <option value="en">English</option>
-                <option value="cs">Čeština</option>
+                <option value="en" data-i18n="localeEn">{{ 'ui.localeEn'|trans }}</option>
+                <option value="cs" data-i18n="localeCs">{{ 'ui.localeCs'|trans }}</option>
             </select>
         </div>
 
@@ -33,32 +34,32 @@
             </div>
 
             <div class="heading">
-                <h1 data-i18n="title">Guest Wi-Fi Login</h1>
+                <h1 data-i18n="title">{{ 'ui.title'|trans }}</h1>
                 <p class="subtitle">
-                    <span data-i18n="connectTo">Connect to</span>
+                    <span data-i18n="connectTo">{{ 'ui.connectTo'|trans }}</span>
                     <strong id="hotel-ssid">Hotel-Guest</strong>         
                     <span class="dot hidden">•</span>
                     <span id="portal-host" class="hidden"></span>
                 </p>
-                <p id="portal-warning" class="subtitle subtitle--warning hidden" data-i18n="portalMissing">Guest portal URL is missing for this document.</p>
+                <p id="portal-warning" class="subtitle subtitle--warning hidden" data-i18n="portalMissing">{{ 'ui.portalMissing'|trans }}</p>
             </div>
         </header>
 
         <div class="manual-overview">
             <div class="manual-overview__meta">
                 <section class="device">
-                    <div class="device__label" data-i18n="deviceLabel">Device</div>
+                    <div class="device__label" data-i18n="deviceLabel">{{ 'ui.deviceLabel'|trans }}</div>
                     <div id="device-buttons" class="device-buttons"></div>
                 </section>
 
                 <section id="ssid-section" class="device hidden">
-                    <div class="device__label" data-i18n="ssidLabel">Network</div>
+                    <div class="device__label" data-i18n="ssidLabel">{{ 'ui.ssidLabel'|trans }}</div>
                     <div id="ssid-buttons" class="device-buttons"></div>
                 </section>
             </div>
 
             <section class="steps">
-                <div class="steps__label" data-i18n="stepsLabel">Steps</div>
+                <div class="steps__label" data-i18n="stepsLabel">{{ 'ui.stepsLabel'|trans }}</div>
                 <ol id="steps-list" class="steps-list"></ol>
             </section>
         </div>
@@ -68,25 +69,25 @@
             <article id="free-card" class="card card--free hidden">
                 <div class="card__bar">
                     <div class="card__left">
-                        <span class="opt opt--free" data-i18n="option3">Option 3</span>
-                        <span class="opt__title" data-i18n="freeAccess">Free access</span>
+                        <span class="opt opt--free" data-i18n="option3">{{ 'ui.option3'|trans }}</span>
+                        <span class="opt__title" data-i18n="freeAccess">{{ 'ui.freeAccess'|trans }}</span>
                     </div>
-                    <div class="card__right" data-i18n="noDetails">No details required</div>
+                    <div class="card__right" data-i18n="noDetails">{{ 'ui.noDetails'|trans }}</div>
                 </div>
 
                 <div class="card__body card__body--single">
                     <div class="dataCol">
                         <div class="dataGrid">
                             <div class="dataBox">
-                                <div class="dataLabel" data-i18n="networkLabel">Network</div>
+                                <div class="dataLabel" data-i18n="networkLabel">{{ 'ui.networkLabel'|trans }}</div>
                                 <div id="free-ssid-value" class="dataValue mono">—</div>
                             </div>
                             <div class="dataBox">
-                                <div class="dataLabel" data-i18n="action">Action</div>
-                                <div class="dataValue" data-i18n-html="tapConnectContinue">Tap <strong>Connect</strong> / <strong>Continue</strong></div>
+                                <div class="dataLabel" data-i18n="action">{{ 'ui.action'|trans }}</div>
+                                <div class="dataValue" data-i18n-html="tapConnectContinue">{{ 'ui.tapConnectContinue'|trans|raw }}</div>
                             </div>
                         </div>
-                        <div class="cta" data-i18n="online">You are online</div>
+                        <div class="cta" data-i18n="online">{{ 'ui.online'|trans }}</div>
                     </div>
                 </div>
             </article>
@@ -95,26 +96,26 @@
         <section id="upgrade-card" class="card upgrade hidden">
             <div class="card__bar">
                 <div class="card__left">
-                    <span class="opt" data-i18n="upgradeLabel">Upgrade</span>
-                    <span id="upgrade-title" class="opt__title">Improve connection</span>
+                    <span class="opt" data-i18n="upgradeLabel">{{ 'ui.upgradeLabel'|trans }}</span>
+                    <span id="upgrade-title" class="opt__title">{{ 'ui.upgradeCardTitle'|trans }}</span>
                 </div>
             </div>
             <div class="card__body upgrade__body">
                 <div>
-                    <p id="upgrade-body" class="upgrade__text"></p>
-                    <a id="upgrade-link" class="upgrade__link" href="#" data-i18n="openUpgrade">Open upgrade page</a>
+                    <p id="upgrade-body" class="upgrade__text">{{ 'ui.upgradeBody'|trans }}</p>
+                    <a id="upgrade-link" class="upgrade__link" href="#" data-i18n="openUpgrade">{{ 'ui.openUpgrade'|trans }}</a>
                 </div>
             </div>
         </section>
 
         <footer class="footer">
-            <div id="support-text">Need help? Please contact reception.</div>
-            <div id="footer-brand" class="muted">© Guest Wi-Fi</div>
+            <div id="support-text">{{ 'ui.supportFallback'|trans }}</div>
+            <div id="footer-brand" class="muted">{{ 'ui.footerFallback'|trans }}</div>
         </footer>
 
         <section id="load-error" class="error hidden">
-            <h2 data-i18n="manualUnavailable">Manual unavailable</h2>
-            <p data-i18n="manualUnavailableBody">This manual link is missing or expired. Please request a fresh one.</p>
+            <h2 data-i18n="manualUnavailable">{{ 'ui.manualUnavailable'|trans }}</h2>
+            <p data-i18n="manualUnavailableBody">{{ 'ui.manualUnavailableBody'|trans }}</p>
         </section>
     </main>
 {% endblock %}

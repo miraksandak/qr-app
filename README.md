@@ -1,6 +1,6 @@
-# SPŠ Ostrov PHP runtime environment
+# QR Access
 
-Toto je vývojové prostředí pro vývoj PHP aplikací v předmětu PVA.
+QR Access je aplikace pro správu hotelové konfigurace a generování přístupových manuálů a QR podkladů pro guest Wi-Fi / captive portal.
 
 ## Závislosti a instalace
 

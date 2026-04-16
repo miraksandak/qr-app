@@ -9,6 +9,7 @@ use App\Repository\ManualRecordRepository;
 use App\Security\ExternalUser;
 use App\Service\HotelConfigurationManager;
 use App\Service\ManualPayloadViewBuilder;
+use App\Service\ManualTranslationCatalog;
 use App\Service\ManualUrlGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -18,6 +19,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Translation\LocaleSwitcher;
 
 class ManualController extends AbstractController
 {
@@ -54,6 +56,7 @@ class ManualController extends AbstractController
     public function __construct(
         private EntityManagerInterface $entityManager,
         private ManualUrlGenerator $manualUrlGenerator,
+        private ManualTranslationCatalog $manualTranslationCatalog,
         #[Autowire('%env(int:DEFAULT_TTL_DAYS)%')]
         private int $defaultTtlDays
     ) {
@@ -192,51 +195,80 @@ class ManualController extends AbstractController
     }
 
     #[Route('/upgrade/{id}', name: 'manual_upgrade', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
-    public function upgrade(string $id, ManualRecordRepository $repository): Response
+    public function upgrade(
+        string $id,
+        ManualRecordRepository $repository,
+        Request $request,
+        LocaleSwitcher $localeSwitcher
+    ): Response
     {
         $record = $this->findActiveRecord($id, $repository);
         if ($record === null) {
             throw new NotFoundHttpException('Not found');
         }
 
-        return $this->render('manual/upgrade.html.twig', [
+        return $this->renderManualPage('manual/upgrade.html.twig', [
             'id' => strtoupper($id),
             'page' => 'upgrade',
             'baseViewerUrl' => $this->manualUrlGenerator->getViewerBaseUrl(),
             'baseUpgradeUrl' => $this->manualUrlGenerator->getUpgradeBaseUrl(),
-        ]);
+        ], $request, $localeSwitcher);
     }
 
     #[Route('/print/{id}', name: 'manual_print', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
-    public function print(string $id, ManualRecordRepository $repository): Response
+    public function print(
+        string $id,
+        ManualRecordRepository $repository,
+        Request $request,
+        LocaleSwitcher $localeSwitcher
+    ): Response
     {
         $record = $this->findActiveRecord($id, $repository);
         if ($record === null) {
             throw new NotFoundHttpException('Not found');
         }
 
-        return $this->render('manual/viewer.html.twig', [
+        return $this->renderManualPage('manual/viewer.html.twig', [
             'id' => strtoupper($id),
             'page' => 'print',
             'baseViewerUrl' => $this->manualUrlGenerator->getViewerBaseUrl(),
             'baseUpgradeUrl' => $this->manualUrlGenerator->getUpgradeBaseUrl(),
-        ]);
+        ], $request, $localeSwitcher);
     }
 
     #[Route('/{id}', name: 'manual_viewer', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: -100)]
-    public function viewer(string $id, ManualRecordRepository $repository): Response
+    public function viewer(
+        string $id,
+        ManualRecordRepository $repository,
+        Request $request,
+        LocaleSwitcher $localeSwitcher
+    ): Response
     {
         $record = $this->findActiveRecord($id, $repository);
         if ($record === null) {
             throw new NotFoundHttpException('Not found');
         }
 
-        return $this->render('manual/viewer.html.twig', [
+        return $this->renderManualPage('manual/viewer.html.twig', [
             'id' => strtoupper($id),
             'page' => 'viewer',
             'baseViewerUrl' => $this->manualUrlGenerator->getViewerBaseUrl(),
             'baseUpgradeUrl' => $this->manualUrlGenerator->getUpgradeBaseUrl(),
-        ]);
+        ], $request, $localeSwitcher);
+    }
+
+    private function renderManualPage(
+        string $template,
+        array $context,
+        Request $request,
+        LocaleSwitcher $localeSwitcher
+    ): Response
+    {
+        $locale = $this->resolveManualLocale($request);
+        $context['initialLang'] = $locale;
+        $context['manualI18n'] = $this->manualTranslationCatalog->buildAll();
+
+        return $localeSwitcher->runWithLocale($locale, fn (): Response => $this->render($template, $context));
     }
 
     private function resolveValidUntil(array $payload): \DateTimeImmutable
@@ -442,5 +474,14 @@ class ManualController extends AbstractController
         }
 
         return $payload;
+    }
+
+    private function resolveManualLocale(Request $request): string
+    {
+        $locale = trim((string) $request->cookies->get('manual_lang', ''));
+
+        return in_array($locale, $this->manualTranslationCatalog->getSupportedLocales(), true)
+            ? $locale
+            : 'en';
     }
 }

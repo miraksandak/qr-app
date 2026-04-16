@@ -1,6 +1,6 @@
 {
-    "name": "sterzik/php-runtime-env",
-    "description": "PHP Docker Runtime Environment",
+    "name": "sterzik/qr-access",
+    "description": "QR Access",
     "authors": [
         {
             "name": "Marek Sterzik",

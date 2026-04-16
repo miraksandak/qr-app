@@ -1,6 +1,6 @@
-# Zprovoznění dockeru a závislostí spsostrov-php-runtime na Windows
+# Zprovoznění QR Access na Windows
 
-Výojové prostředí spsostrov-php-runtime běží na Windows v rámci subsystému WSL (Windows subsystem for Linux). Nevýhoda je, že celý WSL subsystém je stále experimentální a při instalaci se mnoho věcí může pokazit.
+Aplikace QR Access běží na Windows v rámci subsystému WSL (Windows subsystem for Linux). Nevýhoda je, že celý WSL subsystém je stále experimentální a při instalaci se mnoho věcí může pokazit.
 
 Toto je nejnovější optimalizovaný návod, jak správně nainstalovat všechny potřebné závislosti na provoz prostředí. Návod předpokládá Windows 10 a novější.
 
@@ -108,6 +108,6 @@ Po dokončení instalace už není potřeba výše zmíněné kroky znovu opakov
 
 1. Zapneme aplikaci Docker desktop (okno můžeme klidně zavřít a můžeme jí nechat klidně běžet jenom na pozadí v systémové liště)
 2. Zapneme aplikaci Ubuntu.
-3. V terminálu aplikace ubuntu provozujeme prostředí spsostrov-php-runtime podle [základního návodu](README.md).
+3. V terminálu aplikace Ubuntu provozujeme QR Access podle [základního návodu](README.md).
 4. Je-li v systému nainstalováno Visual Studio Code, můžeme jej v terminálu Ubuntu spouštět příkazem `code <adresář-nebo-soubor> &`.
 5. Pokud se ze systému odhlašujeme, **je nutné docker zase vypnout**. Jinak docker zůstane běžet na pozadí a nově přihlášený uživatel se k němu nedostane a nemůže si ani zapnout vlastní docker službu.

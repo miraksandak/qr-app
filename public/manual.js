@@ -11,177 +11,34 @@
 
     const page = body.dataset.page || 'viewer';
     const baseUpgradeUrl = body.dataset.baseUpgradeUrl || '';
+    const i18nNode = document.getElementById('manual-i18n');
+    let manualI18n = {};
+    if (i18nNode) {
+        try {
+            const parsedI18n = JSON.parse(i18nNode.textContent || '{}');
+            if (parsedI18n && typeof parsedI18n === 'object') {
+                manualI18n = parsedI18n;
+            }
+        } catch (error) {
+            manualI18n = {};
+        }
+    }
 
-    const translations = {
-        en: {
-            language: 'Language',
-            title: 'Guest Wi-Fi Login',
-            connectTo: 'Connect to',
-            wifiLabel: 'Wi-Fi',
-            deviceLabel: 'Device',
-            ssidLabel: 'Network',
-            stepsLabel: 'Steps',
-            option1: 'Option 1',
-            roomSurname: 'Room + Surname',
-            option2: 'Option 2',
-            accessCode: 'Access code',
-            option3: 'Option 3',
-            freeAccess: 'Free access',
-            noDetails: 'No details required',
-            scanCamera: 'Scan with Camera',
-            roomNumber: 'Room number',
-            surname: 'Surname',
-            firstName: 'First name',
-            checkinNumber: 'Check-in number',
-            passwordLabel: 'Password',
-            accessCodeLabel: 'Access code',
-            networkLabel: 'Network',
-            authRoom: 'room number and surname',
-            authAccess: 'access code',
-            action: 'Action',
-            tapConnect: 'Tap <strong>Connect</strong>',
-            tapConnectContinue: 'Tap <strong>Connect</strong> / <strong>Continue</strong>',
-            online: 'You are online',
-            upgradeLabel: 'Upgrade',
-            upgradeCardTitle: 'Improve connection',
-            upgradeBody: 'If your connection is unstable, open the upgrade page.',
-            openUpgrade: 'Open upgrade page',
-            manualUnavailable: 'Manual unavailable',
-            manualUnavailableBody: 'This manual link is missing or expired. Please request a fresh one.',
-            portalMissing: 'Guest portal URL is missing for this document.',
-            upgradeTitle: 'Connection upgrade',
-            upgradeUnavailable: 'Upgrade unavailable',
-            upgradeUnavailableBody: 'This upgrade link is missing, expired, or disabled for this manual.',
-        },
-        cs: {
-            language: 'Jazyk',
-            title: 'Přihlášení k Wi‑Fi',
-            connectTo: 'Připojte se k',
-            wifiLabel: 'Wi‑Fi',
-            deviceLabel: 'Zařízení',
-            ssidLabel: 'Síť',
-            stepsLabel: 'Postup',
-            option1: 'Volba 1',
-            roomSurname: 'Pokoj + Příjmení',
-            option2: 'Volba 2',
-            accessCode: 'Přístupový kód',
-            option3: 'Volba 3',
-            freeAccess: 'Volný přístup',
-            noDetails: 'Bez údajů',
-            scanCamera: 'Naskenujte fotoaparátem',
-            roomNumber: 'Číslo pokoje',
-            surname: 'Příjmení',
-            firstName: 'Jméno',
-            checkinNumber: 'Číslo check-inu',
-            passwordLabel: 'Heslo',
-            accessCodeLabel: 'Přístupový kód',
-            networkLabel: 'Síť',
-            authRoom: 'číslo pokoje a příjmení',
-            authAccess: 'přístupový kód',
-            action: 'Akce',
-            tapConnect: 'Klepněte na <strong>Připojit</strong>',
-            tapConnectContinue: 'Klepněte na <strong>Připojit</strong> / <strong>Pokračovat</strong>',
-            online: 'Jste online',
-            upgradeLabel: 'Upgrade',
-            upgradeCardTitle: 'Vylepšit připojení',
-            upgradeBody: 'Pokud je připojení nestabilní, otevřete stránku upgradu.',
-            openUpgrade: 'Otevřít stránku upgradu',
-            manualUnavailable: 'Manuál není dostupný',
-            manualUnavailableBody: 'Odkaz na manuál neexistuje nebo vypršel. Vyžádejte si nový.',
-            portalMissing: 'V tomto dokumentu chybí URL guest portálu.',
-            upgradeTitle: 'Vylepšení připojení',
-            upgradeUnavailable: 'Upgrade není dostupný',
-            upgradeUnavailableBody: 'Odkaz je neplatný, vypršel nebo je vypnutý.',
-        },
-    };
+    const translations = manualI18n.translations && typeof manualI18n.translations === 'object'
+        ? manualI18n.translations
+        : {};
+    const deviceNames = manualI18n.deviceNames && typeof manualI18n.deviceNames === 'object'
+        ? manualI18n.deviceNames
+        : {};
+    const instructionSets = manualI18n.instructionSets && typeof manualI18n.instructionSets === 'object'
+        ? manualI18n.instructionSets
+        : {};
+    const fallbackLang = Object.prototype.hasOwnProperty.call(translations, 'en')
+        ? 'en'
+        : (Object.keys(translations)[0] || 'en');
+    const isSupportedLang = (lang) => Object.prototype.hasOwnProperty.call(translations, lang);
 
-    const deviceNames = {
-        en: { android: 'Android', ios: 'iOS', generic: 'Other' },
-        cs: { android: 'Android', ios: 'iOS', generic: 'Ostatní' },
-    };
-
-    const instructionSets = {
-        en: {
-            portal: {
-                android: [
-                    'Open Wi-Fi settings on your phone.',
-                    'Connect to {ssid}.',
-                    'If the portal does not open, open {portal}.',
-                    'Enter {auth} and tap Connect.',
-                ],
-                ios: [
-                    'Open Settings and tap Wi-Fi.',
-                    'Connect to {ssid}.',
-                    'If the portal does not open, open {portal}.',
-                    'Enter {auth} and tap Connect.',
-                ],
-                generic: [
-                    'Open Wi-Fi settings on your device.',
-                    'Connect to {ssid}.',
-                    'If the portal does not open, open {portal}.',
-                    'Enter {auth} and tap Connect.',
-                ],
-            },
-            free: {
-                android: [
-                    'Open Wi-Fi settings on your phone.',
-                    'Connect to {ssid}.',
-                    'You are online.',
-                ],
-                ios: [
-                    'Open Settings and tap Wi-Fi.',
-                    'Connect to {ssid}.',
-                    'You are online.',
-                ],
-                generic: [
-                    'Open Wi-Fi settings on your device.',
-                    'Connect to {ssid}.',
-                    'You are online.',
-                ],
-            },
-        },
-        cs: {
-            portal: {
-                android: [
-                    'Otevřete nastavení Wi‑Fi v telefonu.',
-                    'Připojte se k {ssid}.',
-                    'Pokud se portál neotevře, otevřete {portal}.',
-                    'Zadejte {auth} a potvrďte připojení.',
-                ],
-                ios: [
-                    'Otevřete Nastavení a klepněte na Wi‑Fi.',
-                    'Připojte se k {ssid}.',
-                    'Pokud se portál neotevře, otevřete {portal}.',
-                    'Zadejte {auth} a potvrďte připojení.',
-                ],
-                generic: [
-                    'Otevřete nastavení Wi‑Fi na zařízení.',
-                    'Připojte se k {ssid}.',
-                    'Pokud se portál neotevře, otevřete {portal}.',
-                    'Zadejte {auth} a potvrďte připojení.',
-                ],
-            },
-            free: {
-                android: [
-                    'Otevřete nastavení Wi‑Fi v telefonu.',
-                    'Připojte se k {ssid}.',
-                    'Jste online.',
-                ],
-                ios: [
-                    'Otevřete Nastavení a klepněte na Wi‑Fi.',
-                    'Připojte se k {ssid}.',
-                    'Jste online.',
-                ],
-                generic: [
-                    'Otevřete nastavení Wi‑Fi na zařízení.',
-                    'Připojte se k {ssid}.',
-                    'Jste online.',
-                ],
-            },
-        },
-    };
-
-    const getDictionary = (lang) => translations[lang] || translations.en;
+    const getDictionary = (lang) => translations[lang] || translations[fallbackLang] || {};
 
     const translate = (dictionary, key) => {
         if (!key) {
@@ -192,7 +49,17 @@
             return dictionary[key];
         }
 
-        return translations.en[key] !== undefined ? translations.en[key] : key;
+        const fallbackDictionary = translations[fallbackLang] || {};
+        return fallbackDictionary[key] !== undefined ? fallbackDictionary[key] : key;
+    };
+
+    const persistLanguage = (lang) => {
+        if (window.localStorage) {
+            window.localStorage.setItem('manual_lang', lang);
+        }
+
+        document.cookie = `manual_lang=${encodeURIComponent(lang)}; path=/; max-age=31536000; samesite=lax`;
+        document.documentElement.lang = lang;
     };
 
     const showError = () => {
@@ -345,6 +212,7 @@
 
     const applyTranslations = (lang) => {
         const dictionary = getDictionary(lang);
+        document.documentElement.lang = lang;
         document.querySelectorAll('[data-i18n]').forEach((node) => {
             const key = node.dataset.i18n;
             if (!key) {
@@ -377,7 +245,7 @@
     };
 
     const resolveInstructionSteps = (lang, mode, device, context) => {
-        const set = instructionSets[lang] || instructionSets.en;
+        const set = instructionSets[lang] || instructionSets[fallbackLang] || { portal: {}, free: {} };
         const group = mode === 'free' ? set.free : set.portal;
         const steps = Array.isArray(group[device]) ? group[device] : (group.generic || []);
         return steps
@@ -385,7 +253,7 @@
             .map((step) => formatStep(step, context));
     };
 
-    const renderStepsList = (mode, device, lang, context) => {
+    const renderStepsList = (mode, device, lang, context, dictionary) => {
         const list = document.getElementById('steps-list');
         if (!list) {
             return;
@@ -394,9 +262,7 @@
         const steps = resolveInstructionSteps(lang, mode, device, context);
         if (!steps.length) {
             const li = document.createElement('li');
-            li.textContent = lang === 'cs'
-                ? 'Žádné kroky nejsou k dispozici.'
-                : 'No steps available for this device.';
+            li.textContent = translate(dictionary, 'noStepsAvailable');
             list.appendChild(li);
             return;
         }
@@ -418,7 +284,7 @@
         const initialDevice = preferredDevice && available.includes(preferredDevice)
             ? preferredDevice
             : (available.includes(defaultDevice) ? defaultDevice : available[0]);
-        const labels = deviceNames[lang] || deviceNames.en;
+        const labels = deviceNames[lang] || deviceNames[fallbackLang] || {};
 
         container.innerHTML = '';
 
@@ -779,8 +645,8 @@
     const renderSupport = (payload, ssidName, showPortal, dictionary, portalMissing = false) => {
         setText('hotel-name', payload.hotel?.name, '');
         setText('hotel-ssid', ssidName || payload.hotel?.ssid, 'Hotel-Guest');
-        setText('support-text', payload.hotel?.supportText, 'Need help? Contact reception.');
-        const footerText = payload.hotel?.footerText || (payload.hotel?.name ? `© ${payload.hotel.name}` : '© Guest Wi-Fi');
+        setText('support-text', payload.hotel?.supportText, translate(dictionary, 'supportFallback'));
+        const footerText = payload.hotel?.footerText || (payload.hotel?.name ? `© ${payload.hotel.name}` : translate(dictionary, 'footerFallback'));
         setText('footer-brand', footerText);
 
         const portalUrl = showPortal ? getPortalUrl(payload) : '';
@@ -814,7 +680,7 @@
         const logo = document.getElementById('hotel-logo');
         if (logo && logoUrl) {
             logo.src = logoUrl;
-            logo.alt = payload.hotel?.name || 'Hotel logo';
+            logo.alt = payload.hotel?.name || translate(dictionary, 'hotelLogoAlt');
             logo.classList.remove('hidden');
         }
     };
@@ -835,10 +701,12 @@
 
         const langSelect = document.getElementById('langSelect');
         const stored = window.localStorage ? window.localStorage.getItem('manual_lang') : null;
-        const initialLang = stored && translations[stored] ? stored : 'en';
+        const initialLang = isSupportedLang(body.dataset.initialLang || '') ? body.dataset.initialLang : (stored && isSupportedLang(stored) ? stored : fallbackLang);
         if (langSelect) {
             langSelect.value = initialLang;
         }
+
+        persistLanguage(initialLang);
 
         let currentDevice = payload.device?.default || 'generic';
         let activeVariantId = payload.manual?.activeVariantId || authVariants[0]?.id || freeVariant?.id || null;
@@ -882,7 +750,7 @@
                 ssid: currentSsid,
                 portal: showPortal ? portalTarget : '',
                 auth: resolveAuthLabel(dict, activeVariant?.mode || activeVariant?.usage),
-            });
+            }, dict);
             applyPageTitle(dict);
         };
 
@@ -897,9 +765,7 @@
         if (langSelect) {
             langSelect.addEventListener('change', () => {
                 const lang = langSelect.value;
-                if (window.localStorage) {
-                    window.localStorage.setItem('manual_lang', lang);
-                }
+                persistLanguage(lang);
                 const dict = applyTranslations(lang);
                 renderDeviceButtons(payload, lang, (device) => {
                     currentDevice = device;
@@ -927,8 +793,6 @@
             : (normalizeUsage(primaryVariant?.usage || primaryVariant?.mode || primaryVariant?.id) || 'pms');
         const portalMissing = variantUsage !== 'free' && !portalTarget;
         const showPortal = variantUsage !== 'free' && !!portalTarget;
-
-        renderSupport(payload, ssidName, showPortal, null, portalMissing);
         const upgrade = resolveUpgradeConfig(payload);
         if (!(upgrade.enabled || upgrade.url)) {
             hideUpgradeCard();
@@ -938,13 +802,16 @@
 
         const langSelect = document.getElementById('langSelect');
         const stored = window.localStorage ? window.localStorage.getItem('manual_lang') : null;
-        const initialLang = stored && translations[stored] ? stored : 'en';
+        const initialLang = isSupportedLang(body.dataset.initialLang || '') ? body.dataset.initialLang : (stored && isSupportedLang(stored) ? stored : fallbackLang);
         if (langSelect) {
             langSelect.value = initialLang;
         }
 
+        persistLanguage(initialLang);
+
         const applyUpgradeText = (lang) => {
             const dictionary = applyTranslations(lang);
+            renderSupport(payload, ssidName, showPortal, dictionary, portalMissing);
             setText('upgrade-title', translate(dictionary, 'upgradeCardTitle'));
             setText('upgrade-body', translate(dictionary, 'upgradeBody'));
             const title = document.querySelector('title');
@@ -958,9 +825,7 @@
         if (langSelect) {
             langSelect.addEventListener('change', () => {
                 const lang = langSelect.value;
-                if (window.localStorage) {
-                    window.localStorage.setItem('manual_lang', lang);
-                }
+                persistLanguage(lang);
                 applyUpgradeText(lang);
             });
         }
