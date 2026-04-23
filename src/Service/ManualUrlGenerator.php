@@ -44,6 +44,11 @@ class ManualUrlGenerator
         return $this->getViewerBaseUrl() . '/json/' . strtoupper($id);
     }
 
+    public function buildAccessDecisionUrl(string $id): string
+    {
+        return $this->getViewerBaseUrl() . '/access-decision/' . strtoupper($id);
+    }
+
     public function buildPrintUrl(string $id): string
     {
         return $this->getViewerBaseUrl() . '/print/' . strtoupper($id);

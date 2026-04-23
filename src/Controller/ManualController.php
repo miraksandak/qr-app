@@ -8,6 +8,7 @@ use App\Repository\HotelRepository;
 use App\Repository\ManualRecordRepository;
 use App\Security\ExternalUser;
 use App\Service\HotelConfigurationManager;
+use App\Service\ManualAccessDecisionBuilder;
 use App\Service\ManualPayloadViewBuilder;
 use App\Service\ManualTranslationCatalog;
 use App\Service\ManualUrlGenerator;
@@ -160,6 +161,7 @@ class ManualController extends AbstractController
             'id' => $id,
             'viewerUrl' => $this->manualUrlGenerator->buildViewerUrl($id),
             'jsonUrl' => $this->manualUrlGenerator->buildJsonUrl($id),
+            'accessDecisionUrl' => $this->manualUrlGenerator->buildAccessDecisionUrl($id),
             'printUrl' => $this->manualUrlGenerator->buildPrintUrl($id),
             'upgradeUrl' => $this->manualUrlGenerator->buildUpgradeUrl($id),
             'validUntil' => $validUntil->format(\DateTimeInterface::ATOM),
@@ -192,6 +194,36 @@ class ManualController extends AbstractController
         }
 
         return new JsonResponse($manualPayloadViewBuilder->build($payload));
+    }
+
+    #[Route('/access-decision/{id}', name: 'manual_access_decision', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]
+    public function accessDecision(
+        string $id,
+        ManualRecordRepository $repository,
+        ManualAccessDecisionBuilder $manualAccessDecisionBuilder
+    ): JsonResponse
+    {
+        $record = $this->findActiveRecord($id, $repository);
+        if ($record === null) {
+            return new JsonResponse(['error' => 'Not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $payload = json_decode($record->getPayloadJson(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return new JsonResponse(['error' => 'Stored payload is invalid'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        if (!is_array($payload)) {
+            return new JsonResponse(['error' => 'Stored payload is invalid'], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $decision = $manualAccessDecisionBuilder->build($payload);
+        if ($decision === null) {
+            return new JsonResponse(['error' => 'Access decision is not available'], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse($decision);
     }
 
     #[Route('/upgrade/{id}', name: 'manual_upgrade', methods: ['GET'], requirements: ['id' => '[A-Za-z0-9]{5}'], priority: 10)]

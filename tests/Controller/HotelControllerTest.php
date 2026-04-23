@@ -250,6 +250,21 @@ class HotelControllerTest extends WebTestCase
 
         $this->assertSame('hotel-alpha', $created['hotelExternalId']);
         $this->assertStringContainsString('/json/', $created['jsonUrl']);
+        $this->assertStringContainsString('/access-decision/', $created['accessDecisionUrl']);
+
+        $accessDecisionPath = parse_url($created['accessDecisionUrl'], PHP_URL_PATH);
+        $client->request('GET', $accessDecisionPath);
+        $this->assertResponseIsSuccessful();
+
+        $decision = json_decode((string) $client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame([
+            'type' => 'pms_access',
+            'pms' => [
+                'roomNumber' => '101',
+                'surname' => 'Doe',
+            ],
+            'secondaryAuth' => [],
+        ], $decision);
 
         $client->request('GET', '/app/api/hotels/hotel-alpha');
         $this->assertResponseIsSuccessful();
