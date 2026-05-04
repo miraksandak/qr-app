@@ -263,6 +263,10 @@ class HotelControllerTest extends WebTestCase
                 'roomNumber' => '101',
                 'surname' => 'Doe',
             ],
+            'pmsFields' => [
+                'roomNumber' => '101',
+                'surname' => 'Doe',
+            ],
             'secondaryAuth' => [],
         ], $decision);
 

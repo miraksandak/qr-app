@@ -62,6 +62,7 @@ class ManualAccessDecisionBuilder
         return [
             'type' => self::TYPE_PMS_ACCESS,
             'pms' => $pms,
+            'pmsFields' => $pms,
             'secondaryAuth' => [],
         ];
     }

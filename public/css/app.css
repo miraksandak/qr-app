@@ -473,11 +473,6 @@ a {
     gap: 18px;
 }
 
-.content-grid--aside {
-    grid-template-columns: minmax(0, 1fr) 320px;
-    align-items: start;
-}
-
 .content-stack {
     display: grid;
     gap: 18px;
