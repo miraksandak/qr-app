@@ -181,6 +181,11 @@ function bootstrap_adminer_login(): void
     }
 }
 
+function is_adminer_file_request(): bool
+{
+    return isset($_GET['file']) && is_string($_GET['file']);
+}
+
 function parse_users(string $usersPass): ?array
 {
     $users = [];
@@ -259,7 +264,7 @@ function http_authorize($httpAuthorize)
 http_authorize($httpAuth ?? null);
 AdminerLoginPasswordLess::setDbConf($dbConf ?? null);
 
-if (AdminerLoginPasswordLess::isConfigured()) {
+if (AdminerLoginPasswordLess::isConfigured() && !is_adminer_file_request()) {
     $database = (new AdminerLoginPasswordLess())->database();
     $hasUsername = isset($_GET['username']) && is_string($_GET['username']);
     $hasDatabase = isset($_GET['db']) && is_string($_GET['db']) && $_GET['db'] !== '';
