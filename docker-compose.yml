@@ -14,6 +14,7 @@ services:
             RUNTIME_GID: ${WWW_DATA_GID:-33}
             APP_ENV: dev
             DATABASE_URL: 'mysql://user:userpass@db:3306/thedatabase?serverVersion=8.0'
+            APP_INTERNAL_API_TOKEN: 'local-qr-debug-token'
     db:
         image: mysql:8.0.40
         expose:

@@ -19,6 +19,7 @@ SERVER_GID="$RUNTIME_GID"
 envcheck APP_ENV=default:prod .=enum:prod:test:dev
 envcheck APP_SECRET=default:7e0e13ce8d72716678be47a2c9d3ad15 .=re:'^[a-zA-Z0-9]+$'
 envcheck DATABASE_URL=url:schemes=mysql
+envcheck APP_INTERNAL_API_TOKEN=re:'[a-zA-Z0-9\-]+'
 
 envcheck USE_REVERSE_PROXY=default:true .=bool
 

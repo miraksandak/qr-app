@@ -10,6 +10,8 @@
 /node_modules/
 /public/js/*
 !/public/js/.gitkeep
+!/public/js/access-copy.js
+!/public/js/access-password-toggle.js
 
 #ides (put your favorite IDE tmp file masks here)
 .*.swp

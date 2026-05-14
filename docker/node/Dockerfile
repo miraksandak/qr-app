@@ -1,11 +1,11 @@
 FROM node:16
 
-ARG API_WWW_DATA_UID=orig
-ARG API_WWW_DATA_GID=orig
+ARG WWW_DATA_UID=orig
+ARG WWW_DATA_GID=orig
 
 # fix www-data uid and gid
 ADD fix-node-user /usr/local/sbin/fix-node-user
-RUN perl /usr/local/sbin/fix-node-user "${API_WWW_DATA_UID}" "${API_WWW_DATA_GID}"
+RUN perl /usr/local/sbin/fix-node-user "${WWW_DATA_UID}" "${WWW_DATA_GID}"
 RUN chown -R node:node /home/node
 
 WORKDIR /workspace
